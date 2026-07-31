@@ -5,3 +5,6 @@ dist/
 !.env.example
 coverage/
 *.log
+/generated/prisma
+generated/
+src/generated/

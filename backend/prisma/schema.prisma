@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LinkStatus {
+  ACTIVE
+  DISABLED
+  DELETED
+}
+
+enum PlanType {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model Plan {
+  id                      Int            @id @default(autoincrement())
+  type                    PlanType       @unique
+  createdAt               DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  dailyLinkLimit          Int            @map("daily_link_limit")
+  activeLinkLimit         Int            @map("active_link_limit")
+  maxExpiryDays           Int?           @map("max_expiry_days")
+  allowsCustomAlias       Boolean        @default(false) @map("allows_custom_alias")
+  allowsDetailedAnalytics Boolean        @default(false) @map("allows_detailed_analytics")
+  subscriptions           Subscription[]
+
+  @@map("plans")
+}
+
+model User {
+  id              Int            @id @default(autoincrement())
+  username        String?        @db.VarChar(50)
+  email           String         @unique @db.VarChar(255)
+  passwordHash    String         @map("password_hash") @db.VarChar(255)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  links           Link[]
+  subscriptions   Subscription[]
+  usageCounters   UsageCounter[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Link {
+  id          Int        @id @default(autoincrement())
+  userId      Int        @map("user_id")
+  originalUrl String     @map("original_url") @db.Text
+  shortCode   String     @unique @map("short_code") @db.VarChar(16)
+  status      LinkStatus @default(ACTIVE)
+  isCustom    Boolean    @default(false) @map("is_custom")
+  totalClicks Int        @default(0) @map("total_clicks")
+  expiresAt   DateTime?  @map("expires_at") @db.Timestamptz(3)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime?  @map("deleted_at") @db.Timestamptz(3)
+  user        User       @relation(fields: [userId], references: [id])
+
+  clickEvents ClickEvent[]
+
+  @@index([userId, status])
+  @@map("links")
+}
+
+model Subscription {
+  id        Int                @id @default(autoincrement())
+  userId    Int                @map("user_id")
+  planId    Int                @map("plan_id")
+  status    SubscriptionStatus @default(ACTIVE)
+  startsAt  DateTime           @default(now()) @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime?          @map("ends_at") @db.Timestamptz(3)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id])
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([userId, status])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+model ClickEvent {
+  id              Int      @id @default(autoincrement())
+  linkId          Int      @map("link_id")
+  clickedAt       DateTime @default(now()) @map("clicked_at") @db.Timestamptz(3)
+  referrer        String?  @db.Text
+  userAgent       String?  @map("user_agent") @db.Text
+  countryCode     String?  @map("country_code") @db.VarChar(2)
+  browser         String?  @db.VarChar(100)
+  operatingSystem String?  @map("operating_system") @db.VarChar(100)
+  deviceType      String?  @map("device_type") @db.VarChar(20)
+
+  link Link @relation(fields: [linkId], references: [id])
+
+  @@index([linkId, clickedAt])
+  @@map("click_events")
+}
+
+model UsageCounter {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  usageDate    DateTime @map("usage_date") @db.Date
+  linksCreated Int      @default(0) @map("links_created")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, usageDate])
+  @@map("usage_counters")
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
