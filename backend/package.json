@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts"
+    "start": "tsx src/server.ts",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
