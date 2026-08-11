@@ -3,6 +3,7 @@ import { ApiError } from "../../common/errors/app.error.js";
 import { authConfig } from "../../config/auth.js";
 import { loginUser, logoutSession, refreshSession, registerUser } from "./auth.service.js";
 import { loginSchema, registerSchema } from "./auth.validation.js";
+import type { AuthenticatedRequest } from "./auth.middleware.js";
 
 function setRefreshTokenCookie(response: Response, refreshToken: string): void {
   response.cookie(authConfig.cookie.name, refreshToken, {
@@ -66,4 +67,10 @@ export async function logoutController(request: Request, response: Response) {
 
   clearRefreshTokenCookie(response);
   response.status(204).send();
+}
+
+export async function meController(request: Request, response: Response) {
+  const { user } = request as AuthenticatedRequest;
+
+  response.status(200).json({ user });
 }

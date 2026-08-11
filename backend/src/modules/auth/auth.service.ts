@@ -24,7 +24,7 @@ export interface SessionResult {
   user: AuthUserDto;
 }
 
-function toUserDto(user: Pick<Prisma.UserModel, "id" | "email" | "username" | "createdAt">): AuthUserDto {
+export function toUserDto(user: Pick<Prisma.UserModel, "id" | "email" | "username" | "createdAt">): AuthUserDto {
   return {
     id: user.id,
     email: user.email,
