@@ -1,0 +1,795 @@
+openapi: 3.0.3
+info:
+  title: URL Shortener API
+  description: |
+    Backend API for the URL shortener.
+
+    Responses follow a uniform error shape `{ error: { code, message } }`.
+    Planned routes (marked `x-status: planned`) are documented from the
+    requirements spec and are not yet implemented.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+security:
+  - {}
+
+tags:
+  - name: Health
+    description: Liveness and readiness probes
+  - name: Auth
+    description: Registration, login, token refresh, and logout
+  - name: Links
+    description: Link management
+  - name: Redirect
+    description: Public short-code redirects
+
+paths:
+  /health/live:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      description: Returns 200 when the API process is alive. Pass `?fail=true` to simulate an unavailable service.
+      operationId: healthLive
+      parameters:
+        - name: fail
+          in: query
+          description: When `true`, returns 503 to simulate an unhealthy service.
+          schema:
+            type: string
+            enum: ["true"]
+      responses:
+        "200":
+          description: API is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /health/ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      description: Returns 200 when the API and its dependencies are ready to serve traffic.
+      operationId: healthReady
+      x-status: planned
+      responses:
+        "200":
+          description: API is ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: Creates a user with a hashed password and auto-assigns the FREE subscription plan.
+      operationId: authRegister
+      x-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "400":
+          description: Invalid or missing request fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in
+      description: Verifies credentials, issues a short-lived JWT access token, and sets a refresh-token cookie.
+      operationId: authLogin
+      x-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login succeeded. Refresh token set as an HttpOnly cookie.
+          headers:
+            Set-Cookie:
+              description: HttpOnly refresh token.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "401":
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      description: Rotates the refresh token from the cookie, revokes the previous one, and issues a new token pair.
+      operationId: authRefresh
+      x-status: planned
+      parameters:
+        - name: Cookie
+          in: header
+          description: The refresh token cookie.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: New token pair issued and cookie rotated.
+          headers:
+            Set-Cookie:
+              description: New HttpOnly refresh token.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSuccessResponse"
+        "401":
+          description: Missing, expired, or already-revoked refresh token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Log out
+      description: Revokes the current refresh token and clears the cookie.
+      operationId: authLogout
+      x-status: planned
+      parameters:
+        - name: Cookie
+          in: header
+          description: The refresh token cookie to revoke.
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Logged out successfully.
+        "401":
+          description: Missing or invalid refresh token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/links:
+    post:
+      tags:
+        - Links
+      summary: Create a short link
+      description: Validates the destination URL, enforces plan limits (daily and active-link), handles custom aliases and expiry, and stores the link with a usage-counter update in a transaction.
+      operationId: createLink
+      x-status: planned
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLinkRequest"
+      responses:
+        "201":
+          description: Link created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkResponse"
+        "400":
+          description: Invalid URL, alias, or expiry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Feature not available or plan limit reached.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Short code already in use.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      tags:
+        - Links
+      summary: List links
+      description: Lists the authenticated user's links with status filtering and pagination.
+      operationId: listLinks
+      x-status: planned
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by link status.
+          schema:
+            $ref: "#/components/schemas/LinkStatus"
+        - name: page
+          in: query
+          description: Page number (1-indexed).
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of links per page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: List of links.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkListResponse"
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/links/{id}:
+    get:
+      tags:
+        - Links
+      summary: Get link details
+      description: Returns details for one owned link.
+      operationId: getLink
+      x-status: planned
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Link details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkResponse"
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found or not owned by the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags:
+        - Links
+      summary: Delete a link
+      description: Soft-deletes an owned link for the retention period.
+      operationId: deleteLink
+      x-status: planned
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link ID.
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Link deleted successfully.
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found or not owned by the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/links/{id}/status:
+    patch:
+      tags:
+        - Links
+      summary: Update link status
+      description: Disables an active link or reactivates a disabled, non-expired link.
+      operationId: updateLinkStatus
+      x-status: planned
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLinkStatusRequest"
+      responses:
+        "200":
+          description: Link status updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkResponse"
+        "400":
+          description: Invalid status value.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found or not owned by the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Link is expired or deleted and cannot be reactivated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/links/{id}/analytics:
+    get:
+      tags:
+        - Links
+      summary: Get link analytics
+      description: Returns total clicks for all users. Detailed analytics (clicks over time, referrer, browser, OS, device, country) are available only to Pro users.
+      operationId: getLinkAnalytics
+      x-status: planned
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Link ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Link analytics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsResponse"
+        "401":
+          description: Missing or invalid access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Detailed analytics not available on the current plan.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Link not found or not owned by the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /{shortCode}:
+    get:
+      tags:
+        - Redirect
+      summary: Resolve a short code
+      description: Publicly resolves a short code to the original URL and records a click. No authentication required.
+      operationId: resolveShortCode
+      x-status: planned
+      parameters:
+        - name: shortCode
+          in: path
+          required: true
+          description: The short code (generated or custom).
+          schema:
+            type: string
+            minLength: 5
+            maxLength: 16
+      responses:
+        "302":
+          description: Redirect to the original URL.
+          headers:
+            Location:
+              description: The original destination URL.
+              schema:
+                type: string
+                format: uri
+        "404":
+          description: Short code does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: Link is expired or disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Short-lived JWT access token.
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Stable, machine-readable error code (e.g. `INVALID_CREDENTIALS`, `LINK_NOT_FOUND`, `UNAUTHORIZED`).
+              example: NOT_FOUND
+            message:
+              type: string
+              description: Human-readable error message.
+              example: Route not found.
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    User:
+      type: object
+      required:
+        - id
+        - email
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: alice
+        email:
+          type: string
+          maxLength: 255
+          format: email
+          example: alice@example.com
+        createdAt:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          maxLength: 255
+          format: email
+          example: alice@example.com
+        username:
+          type: string
+          maxLength: 50
+          example: alice
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          writeOnly: true
+          example: secret-password
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          example: secret-password
+    AuthSuccessResponse:
+      type: object
+      required:
+        - accessToken
+        - user
+      properties:
+        accessToken:
+          type: string
+          description: Short-lived JWT access token.
+          example: eyJhbGciOiJIUzI1NiJ9...
+        user:
+          $ref: "#/components/schemas/User"
+    LinkStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - DISABLED
+        - DELETED
+    Link:
+      type: object
+      required:
+        - id
+        - originalUrl
+        - shortCode
+        - status
+        - isCustom
+        - totalClicks
+      properties:
+        id:
+          type: integer
+          example: 42
+        originalUrl:
+          type: string
+          format: uri
+          example: https://example.com/some/long/path
+        shortCode:
+          type: string
+          maxLength: 16
+          example: aZ82kLm
+        status:
+          $ref: "#/components/schemas/LinkStatus"
+        isCustom:
+          type: boolean
+          example: false
+        totalClicks:
+          type: integer
+          example: 12
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateLinkRequest:
+      type: object
+      required:
+        - originalUrl
+      properties:
+        originalUrl:
+          type: string
+          format: uri
+          description: The destination URL. Only `http` and `https` are allowed.
+          example: https://example.com/some/long/path
+        customCode:
+          type: string
+          description: Pro-only custom short code matching `^[a-zA-Z0-9_-]{5,15}$` and not reserved.
+          pattern: "^[a-zA-Z0-9_-]{5,15}$"
+          example: my-link
+        expiresAt:
+          type: string
+          format: date-time
+          description: Pro-only custom expiry date, within the plan maximum.
+          example: "2026-08-10T00:00:00.000Z"
+    LinkResponse:
+      type: object
+      required:
+        - id
+        - originalUrl
+        - shortCode
+        - status
+        - isCustom
+        - totalClicks
+        - shortUrl
+      allOf:
+        - $ref: "#/components/schemas/Link"
+      properties:
+        shortUrl:
+          type: string
+          format: uri
+          description: Full short URL.
+          example: http://localhost:3000/aZ82kLm
+    LinkListResponse:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LinkResponse"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+    UpdateLinkStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - DISABLED
+          description: Target status. Only `ACTIVE` and `DISABLED` are allowed for status updates.
+    AnalyticsResponse:
+      type: object
+      required:
+        - totalClicks
+      properties:
+        totalClicks:
+          type: integer
+          description: Lifetime total click count (all plans).
+          example: 12
+        detailed:
+          type: object
+          description: Pro-only detailed analytics over the retention window.
+          nullable: true
+          properties:
+            clicksOverTime:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  clicks:
+                    type: integer
+            referrers:
+              type: array
+              items:
+                type: object
+                properties:
+                  referrer:
+                    type: string
+                    nullable: true
+                  clicks:
+                    type: integer
+            browsers:
+              type: array
+              items:
+                type: object
+                properties:
+                  browser:
+                    type: string
+                    nullable: true
+                  clicks:
+                    type: integer
+            operatingSystems:
+              type: array
+              items:
+                type: object
+                properties:
+                  operatingSystem:
+                    type: string
+                    nullable: true
+                  clicks:
+                    type: integer
+            deviceTypes:
+              type: array
+              items:
+                type: object
+                properties:
+                  deviceType:
+                    type: string
+                    nullable: true
+                  clicks:
+                    type: integer
+            countries:
+              type: array
+              items:
+                type: object
+                properties:
+                  countryCode:
+                    type: string
+                    maxLength: 2
+                    nullable: true
+                  clicks:
+                    type: integer
