@@ -8,6 +8,10 @@ export interface CreateUserData {
   username?: string;
 }
 
+export async function findUserByEmail(email: string): Promise<Prisma.UserModel | null> {
+  return prisma.user.findUnique({ where: { email } });
+}
+
 export async function createUserWithFreeSubscription(
   data: CreateUserData
 ): Promise<Prisma.UserModel> {
