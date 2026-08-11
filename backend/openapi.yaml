@@ -84,7 +84,6 @@ paths:
       summary: Register a new user
       description: Creates a user with a hashed password and auto-assigns the FREE subscription plan.
       operationId: authRegister
-      x-status: planned
       requestBody:
         required: true
         content:
@@ -118,7 +117,6 @@ paths:
       summary: Log in
       description: Verifies credentials, issues a short-lived JWT access token, and sets a refresh-token cookie.
       operationId: authLogin
-      x-status: planned
       requestBody:
         required: true
         content:
@@ -151,7 +149,6 @@ paths:
       summary: Refresh access token
       description: Rotates the refresh token from the cookie, revokes the previous one, and issues a new token pair.
       operationId: authRefresh
-      x-status: planned
       parameters:
         - name: Cookie
           in: header
@@ -185,7 +182,6 @@ paths:
       summary: Log out
       description: Revokes the current refresh token and clears the cookie.
       operationId: authLogout
-      x-status: planned
       parameters:
         - name: Cookie
           in: header

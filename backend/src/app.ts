@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import express from "express";
 import healthRouter from "./common/health/health.routes.js";
 import docsRouter from "./common/docs/docs.routes.js";
@@ -7,6 +8,7 @@ import { errorHandler } from "./middleware/error-handler.js";
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/health", healthRouter);
 app.use("/api-docs", docsRouter);

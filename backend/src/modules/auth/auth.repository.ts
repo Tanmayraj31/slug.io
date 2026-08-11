@@ -12,6 +12,67 @@ export async function findUserByEmail(email: string): Promise<Prisma.UserModel |
   return prisma.user.findUnique({ where: { email } });
 }
 
+export async function findUserById(id: number): Promise<Prisma.UserModel | null> {
+  return prisma.user.findUnique({ where: { id } });
+}
+
+export interface CreateRefreshTokenData {
+  userId: number;
+  tokenHash: string;
+  expiresAt: Date;
+}
+
+export async function createRefreshToken(
+  data: CreateRefreshTokenData
+): Promise<Prisma.RefreshTokenModel> {
+  return prisma.refreshToken.create({
+    data: {
+      userId: data.userId,
+      tokenHash: data.tokenHash,
+      expiresAt: data.expiresAt,
+    },
+  });
+}
+
+export async function findRefreshTokenByHash(
+  tokenHash: string
+): Promise<Prisma.RefreshTokenModel | null> {
+  return prisma.refreshToken.findUnique({ where: { tokenHash } });
+}
+
+export async function revokeRefreshToken(id: number): Promise<void> {
+  await prisma.refreshToken.update({
+    where: { id },
+    data: { revokedAt: new Date() },
+  });
+}
+
+export async function revokeAllUserRefreshTokens(userId: number): Promise<void> {
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
+export async function rotateRefreshToken(
+  oldTokenId: number,
+  newToken: CreateRefreshTokenData
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.refreshToken.update({
+      where: { id: oldTokenId },
+      data: { revokedAt: new Date() },
+    }),
+    prisma.refreshToken.create({
+      data: {
+        userId: newToken.userId,
+        tokenHash: newToken.tokenHash,
+        expiresAt: newToken.expiresAt,
+      },
+    }),
+  ]);
+}
+
 export async function createUserWithFreeSubscription(
   data: CreateUserData
 ): Promise<Prisma.UserModel> {
