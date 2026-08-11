@@ -1,4 +1,4 @@
-import { compare, hash } from "bcryptjs";
+import { compare, hash, hashSync } from "bcryptjs";
 import { ApiError } from "../../common/errors/app.error.js";
 import { authConfig } from "../../config/auth.js";
 import type { Prisma } from "../../generated/prisma/client.js";
@@ -17,6 +17,8 @@ import type { AuthUserDto } from "./auth.types.js";
 import type { LoginInput, RegisterInput } from "./auth.validation.js";
 
 const BCRYPT_COST = 12;
+
+const DUMMY_HASH = hashSync("timing-equalization-dummy-password", BCRYPT_COST);
 
 export interface SessionResult {
   accessToken: string;
@@ -61,13 +63,12 @@ export async function registerUser(input: RegisterInput): Promise<AuthUserDto> {
 export async function loginUser(input: LoginInput): Promise<SessionResult> {
   const user = await findUserByEmail(input.email);
 
-  if (!user) {
-    throw new ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
-  }
+  const passwordMatches = await compare(
+    input.password,
+    user ? user.passwordHash : DUMMY_HASH
+  );
 
-  const passwordMatches = await compare(input.password, user.passwordHash);
-
-  if (!passwordMatches) {
+  if (!user || !passwordMatches) {
     throw new ApiError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
   }
 
