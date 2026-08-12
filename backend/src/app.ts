@@ -5,6 +5,7 @@ import docsRouter from "./common/docs/docs.routes.js";
 import authRouter from "./modules/auth/auth.routes.js";
 import { ApiError } from "./common/errors/app.error.js";
 import { errorHandler } from "./middleware/error-handler.js";
+import linksRouter from "./modules/links/links.routes.js";
 const app = express();
 
 app.use(express.json());
@@ -13,6 +14,7 @@ app.use(cookieParser());
 app.use("/health", healthRouter);
 app.use("/api-docs", docsRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/links", linksRouter);
 app.use((_request, _response, next) => {
   next(new ApiError(404, "NOT_FOUND", "Route not found."));
 });

@@ -232,9 +232,8 @@ paths:
       tags:
         - Links
       summary: Create a short link
-      description: Validates the destination URL, enforces plan limits (daily and active-link), handles custom aliases and expiry, and stores the link with a usage-counter update in a transaction.
+      description: Validates the destination URL (http/https only; localhost, private IPs, and cloud metadata endpoints rejected), normalizes it, generates a unique Base62 short code, and stores the link. Plan-limit enforcement, custom aliases, and expiry selection are added incrementally (Phase 7 waves 2-3).
       operationId: createLink
-      x-status: planned
       security:
         - bearerAuth: []
       requestBody:

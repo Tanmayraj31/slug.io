@@ -46,6 +46,8 @@ const jwtRefreshTtl = parseSeconds(process.env.JWT_REFRESH_TTL, 2592000, "JWT_RE
 const cookieName = process.env.COOKIE_NAME ?? "refreshToken";
 const cookieSecure = parseBoolean(process.env.COOKIE_SECURE, "COOKIE_SECURE");
 
+const publicBaseUrl = process.env.PUBLIC_BASE_URL ?? `http://localhost:${port}`;
+
 export const env = {
   port,
   databaseUrl,
@@ -54,4 +56,5 @@ export const env = {
   jwtRefreshTtl,
   cookieName,
   cookieSecure,
+  publicBaseUrl,
 };
