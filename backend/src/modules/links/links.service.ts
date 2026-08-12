@@ -1,6 +1,7 @@
 import { ApiError } from "../../common/errors/app.error.js";
 import { env } from "../../config/env.js";
 import { Prisma } from "../../generated/prisma/client.js";
+import { resolveActivePlan } from "../subscriptions/subscriptions.service.js";
 import { createLinkWithRetry } from "./links.repository.js";
 import type { LinkResponseDto } from "./links.types.js";
 import type { CreateLinkInput } from "./links.validation.js";
@@ -43,6 +44,8 @@ export async function createLink(
   if (!validated.ok) {
     throw new ApiError(400, "INVALID_URL", "The destination URL is invalid.");
   }
+
+  await resolveActivePlan(userId);
 
   // Persist the normalized URL so duplicate detection can compare canonical forms.
   const link = await createLinkWithRetry({

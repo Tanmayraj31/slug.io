@@ -70,7 +70,17 @@ All waves 6.1-6.6 are implemented, verified, and committed.
 - Hardened the central error handler (`src/middleware/error-handler.ts`): malformed JSON → `400 INVALID_JSON`, oversized body → `413 PAYLOAD_TOO_LARGE`, other exposed body-parser errors → their `status` with a stable `BAD_REQUEST` body, and the generic 500 message typo fixed.
 - Verified end to end: full session flow (login → refresh → reuse-replay → logout), all `/me` auth-failure modes, malformed/oversized bodies, and login timing equality; `npx tsc --noEmit` and redocly lint (0 errors) pass.
 
-### Phase 7 (in progress): Link Creation — Wave 7.1
+### Phase 7 (in progress): Link Creation
+
+- [x] Wave 7.1 — module foundation, URL validation, short-code generation, basic create
+- [x] Wave 7.2 — subscriptions module and plan resolution
+- [ ] Wave 7.3 — usage limits and transactional create
+- [ ] Wave 7.4 — expiry rules
+- [ ] Wave 7.5 — custom aliases (Pro-only)
+- [ ] Wave 7.6 — duplicate destination reuse
+- [ ] Wave 7.7 — OpenAPI, verification, docs, commit
+
+#### Wave 7.1 (completed)
 
 Wave 7.1 (module foundation, URL validation, short-code generation, basic create) is implemented and verified end to end.
 
@@ -84,9 +94,20 @@ Wave 7.1 (module foundation, URL validation, short-code generation, basic create
 - Updated `openapi.yaml`: `POST /api/v1/links` is now implemented (GET/list routes remain planned for Phase 8).
 - Verified: `npx tsc --noEmit` green; live E2E — valid URL creates a link (fragment stripped, 7-char Base62 code), and `javascript:`, `localhost`, `169.254.169.254`, `192.168.1.5`, `10.0.0.1`, and `ftp:` all return `400 INVALID_URL`. Missing/bad tokens return `401 UNAUTHORIZED`; missing `originalUrl` returns `400 VALIDATION_ERROR`.
 
+#### Wave 7.2 (completed)
+
+Wave 7.2 (subscriptions module and plan resolution) is implemented and verified.
+
+- Added the layered `src/modules/subscriptions/` module (`subscriptions.types.ts`, `subscriptions.repository.ts`, `subscriptions.service.ts`).
+- `findActiveSubscriptionForUser(userId)` — returns the user's most recent `ACTIVE` subscription whose `startsAt <= now` and whose `endsAt` is null or in the future, including the joined plan.
+- `findPlanByType(type)` — loads a plan by type (used for the FREE fallback).
+- `resolveActivePlan(userId)` — returns a `ResolvedPlan` (`type` + `dailyLinkLimit`, `activeLinkLimit`, `maxExpiryDays`, `allowsCustomAlias`, `allowsDetailedAnalytics`). Prefers the active subscription's plan; otherwise falls back to FREE, which covers no subscription, an expired `endsAt`, or a cancelled subscription (the downgrade policy). Throws `500 PLAN_NOT_CONFIGURED` when no plan row exists.
+- Wired `resolveActivePlan(userId)` into `createLink` (`src/modules/links/links.service.ts`) as a guard so link creation fails fast with `500 PLAN_NOT_CONFIGURED` if plans are not seeded; later waves will use the resolved plan for limits, expiry, and aliases.
+- Verified: `npx tsc --noEmit` green; scripted checks — no subscription → FREE (10/30, 7d, no alias), active FREE subscription → FREE, active PRO subscription → PRO (500/10,000, 365d, alias + analytics allowed), expired PRO subscription → FREE fallback. Live E2E — register → login → create link returns `201` with an `ACTIVE` link.
+
 ## Next Phase
 
-Wave 7.2: plan-aware rules — create `src/modules/subscriptions/` (resolve active plan with FREE fallback), compute expiry (Free auto +7d; Pro user-selected within plan max, defaulting to plan max), gate and validate Pro custom aliases (format, reserved words), and reuse existing ACTIVE/non-expired links for duplicate destinations.
+Wave 7.3: usage limits and transactional create — add `src/modules/usage/` (UTC-day helper, upsert of the daily `UsageCounter`, daily-link-limit check), count the user's active links, and move `createLink` into an interactive transaction that locks the user row (serializing concurrent creates), enforces both plan limits (`403 PLAN_LIMIT_REACHED`), creates the link with code retry, and increments the counter.
 
 ## Local Commands
 
