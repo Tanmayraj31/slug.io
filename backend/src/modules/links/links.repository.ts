@@ -42,6 +42,22 @@ export async function countActiveLinks(tx: Prisma.TransactionClient, userId: num
   })
 }
 
+export async function findReusableLinks(
+  tx: Prisma.TransactionClient,
+  userId: number,
+  originalUrl: string,
+  now: Date
+): Promise<Prisma.LinkModel | null> {
+  return tx.link.findFirst({
+    where: {
+      userId,
+      originalUrl,
+      status: LinkStatus.ACTIVE,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
 
 export async function createLinkWithLimits(
   data: CreateLinkWithLimitsData
@@ -51,6 +67,9 @@ export async function createLinkWithLimits(
 
       return await prisma.$transaction(async (tx)=>{
         await lockUserRow(tx, data.userId);
+
+        const existing = await findReusableLinks(tx, data.userId, data.originalUrl, new Date());
+        if (existing) return existing;
 
         const  usedToday = await getDailyUsageCount(tx,data.userId, data.usageDate);
         if(usedToday>= data.plan.dailyLinkLimit){

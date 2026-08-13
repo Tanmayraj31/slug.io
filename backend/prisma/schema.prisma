@@ -75,6 +75,7 @@ model Link {
   clickEvents ClickEvent[]
 
   @@index([userId, status])
+  @@index([userId, originalUrl])
   @@map("links")
 }
 
