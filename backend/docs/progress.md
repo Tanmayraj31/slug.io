@@ -70,14 +70,14 @@ All waves 6.1-6.6 are implemented, verified, and committed.
 - Hardened the central error handler (`src/middleware/error-handler.ts`): malformed JSON → `400 INVALID_JSON`, oversized body → `413 PAYLOAD_TOO_LARGE`, other exposed body-parser errors → their `status` with a stable `BAD_REQUEST` body, and the generic 500 message typo fixed.
 - Verified end to end: full session flow (login → refresh → reuse-replay → logout), all `/me` auth-failure modes, malformed/oversized bodies, and login timing equality; `npx tsc --noEmit` and redocly lint (0 errors) pass.
 
-### Phase 7 (in progress): Link Creation
+### Phase 7 (completed): Link Creation
 
 - [x] Wave 7.1 — module foundation, URL validation, short-code generation, basic create
 - [x] Wave 7.2 — subscriptions module and plan resolution
 - [x] Wave 7.3 — usage limits and transactional create
 - [x] Wave 7.4 — expiry rules
-- [ ] Wave 7.5 — duplicate destination reuse
-- [ ] Wave 7.6 — OpenAPI, verification, docs, commit
+- [x] Wave 7.5 — duplicate destination reuse
+- [x] Wave 7.6 — OpenAPI, verification, docs, commit
 
 #### Wave 7.1 (completed)
 
@@ -125,9 +125,27 @@ Wave 7.4 (expiry rules) is implemented.
 - `countActiveLinks` already excluded past-expiry links, so the active-link limit stayed correct without changes.
 - Verified: `npx tsc --noEmit` green.
 
+#### Wave 7.5 (completed)
+
+Wave 7.5 (duplicate destination reuse) is implemented and verified.
+
+- Added `findReusableLinks` (`src/modules/links/links.repository.ts`) — returns the user's most recent `ACTIVE` link for the same normalized destination URL whose `expiresAt` is null or in the future.
+- `createLinkWithLimits` queries for a reusable link inside the transaction immediately after locking the user row and *before* the limit checks; when one exists it is returned without creating a new link or incrementing the daily usage counter. Reuse is skipped only when no matching link exists, so a user at their active-link/daily limit still gets their existing link back instead of a false `403 PLAN_LIMIT_REACHED`.
+- The reuse lookup compares against the real current time (`new Date()`), not the UTC usage date, so a link that already expired earlier today is never reused.
+- Added composite index `@@index([userId, originalUrl])` via migration `20260813205423_add_link_owner_url_index` so the lookup stays fast as a user's link count grows.
+- Verified: `npx tsc --noEmit` green; live E2E — the same user re-submitting the same URL gets the identical link (same id and short code) and `usage_counters` increments only once; a different user gets a separate link for the same destination; a `DISABLED` or already-expired link is not reused (a new link is created instead).
+
+#### Wave 7.6 (completed)
+
+Wave 7.6 (OpenAPI, verification, docs, commit) is complete.
+
+- Updated `openapi.yaml` `POST /api/v1/links` to document duplicate-destination reuse.
+- Phase 7 verified end to end (`npx tsc --noEmit` green, live E2E above), and progress docs updated.
+- Committed in two commits: the Wave 7.5 implementation and the Phase 7 docs/OpenAPI update.
+
 ## Next Phase
 
-Wave 7.5: duplicate destination reuse — when no custom alias is requested, return the user's existing active, unexpired link for the same normalized destination URL instead of creating a duplicate (per `docs/requirements.md` "Duplicate Destination URLs"), and only create a new link when none exists.
+Phase 8: Link Management and Redirects — list, filter, disable, reactivate, and soft-delete owned links; resolve public short codes to `302 Found` redirects; record click counts (see `docs/roadmap.md`).
 
 ## After MVP
 
