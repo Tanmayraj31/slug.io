@@ -4,6 +4,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { resolveActivePlan } from "../subscriptions/subscriptions.service.js";
 import { getUtcUsageDate } from "../usage/usage.utils.js";
 import { createLinkWithLimits } from "./links.repository.js";
+import { resolveExpiry } from "./expiry.js";
 import type { LinkResponseDto } from "./links.types.js";
 import type { CreateLinkInput } from "./links.validation.js";
 import { validateAndNormalizeUrl } from "./url-validation.js";
@@ -47,14 +48,16 @@ export async function createLink(
   }
 
   const plan = await resolveActivePlan(userId);
+  const expiresAt = resolveExpiry(input.expiresAt, plan, new Date());
   const usageDate = getUtcUsageDate();
   const link = await createLinkWithLimits({
-  userId,
-  originalUrl: validated.url,
-  isCustom: false,
-  plan,
-  usageDate,
-});
+    userId,
+    originalUrl: validated.url,
+    isCustom: false,
+    plan,
+    usageDate,
+    expiresAt,
+  });
 
   return toLinkDto(link);
 }

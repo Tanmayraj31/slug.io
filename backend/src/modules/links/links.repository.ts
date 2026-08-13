@@ -11,9 +11,10 @@ export interface CreateLinkData {
   isCustom: boolean;
 }
 
-export interface CreateLinksWithLimitData extends CreateLinkData{
+export interface CreateLinkWithLimitsData extends CreateLinkData {
   plan: ResolvedPlan;
-  usageDate: Date
+  usageDate: Date;
+  expiresAt: Date;
 }
 
 const MAX_CODE_ATTEMPTS = 5;
@@ -43,7 +44,7 @@ export async function countActiveLinks(tx: Prisma.TransactionClient, userId: num
 
 
 export async function createLinkWithLimits(
-  data: CreateLinksWithLimitData
+  data: CreateLinkWithLimitsData
 ): Promise<Prisma.LinkModel> {
   for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
     try {
@@ -67,6 +68,7 @@ export async function createLinkWithLimits(
             shortCode: generateShortCode(),
             isCustom: data.isCustom,
             status: LinkStatus.ACTIVE,
+            expiresAt: data.expiresAt,
           },
         });
 
