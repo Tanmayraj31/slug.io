@@ -154,7 +154,7 @@ The system must:
 4. Load the user’s active subscription
 5. Check the daily link-creation limit
 6. Check the active-link limit
-7. Validate custom-code access
+7. Validate custom-code access (deferred until after MVP)
 8. Validate the requested expiry
 9. Generate or validate the short code
 10. Store the link
@@ -226,6 +226,8 @@ The database unique constraint must be treated as the final protection against c
 ## 9. Custom Short-Code Requirements
 
 Custom short codes are available only to eligible Pro users.
+
+> **Status:** deferred until after the MVP. The `customCode` request field and all rules in this section describe the post-MVP target. The MVP creates auto-generated Base62 codes only; `isCustom` stays `false`. Do not treat this section as MVP scope.
 
 A custom short code must:
 

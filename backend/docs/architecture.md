@@ -56,7 +56,7 @@ Route → Middleware → Controller → Service → Repository → Prisma → Po
 1. Authenticate user
 2. Validate request
 3. Check plan and usage limits
-4. Validate alias and expiry
+4. Validate expiry (custom aliases deferred until after MVP)
 5. Generate short code
 6. Create link and update usage in a transaction
 7. Return short URL

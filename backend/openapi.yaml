@@ -232,7 +232,7 @@ paths:
       tags:
         - Links
       summary: Create a short link
-      description: Validates the destination URL (http/https only; localhost, private IPs, and cloud metadata endpoints rejected), normalizes it, generates a unique Base62 short code, enforces daily and active-link plan limits (403 PLAN_LIMIT_REACHED), applies expiry rules (Free links get the plan's fixed expiry; Pro users may send expiresAt within the plan maximum), and stores the link. Custom aliases arrive in a later wave.
+      description: Validates the destination URL (http/https only; localhost, private IPs, and cloud metadata endpoints rejected), normalizes it, generates a unique Base62 short code, enforces daily and active-link plan limits (403 PLAN_LIMIT_REACHED), applies expiry rules (Free links get the plan's fixed expiry; Pro users may send expiresAt within the plan maximum), and stores the link. Custom aliases are deferred until after the MVP.
       operationId: createLink
       security:
         - bearerAuth: []
@@ -686,7 +686,7 @@ components:
           example: https://example.com/some/long/path
         customCode:
           type: string
-          description: Pro-only custom short code matching `^[a-zA-Z0-9_-]{5,15}$` and not reserved.
+          description: Pro-only custom short code matching `^[a-zA-Z0-9_-]{5,15}$` and not reserved. Deferred until after the MVP.
           pattern: "^[a-zA-Z0-9_-]{5,15}$"
           example: my-link
         expiresAt:

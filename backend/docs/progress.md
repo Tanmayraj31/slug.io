@@ -74,11 +74,10 @@ All waves 6.1-6.6 are implemented, verified, and committed.
 
 - [x] Wave 7.1 — module foundation, URL validation, short-code generation, basic create
 - [x] Wave 7.2 — subscriptions module and plan resolution
-- [ ] Wave 7.3 — usage limits and transactional create
-- [ ] Wave 7.4 — expiry rules
-- [ ] Wave 7.5 — custom aliases (Pro-only)
-- [ ] Wave 7.6 — duplicate destination reuse
-- [ ] Wave 7.7 — OpenAPI, verification, docs, commit
+- [x] Wave 7.3 — usage limits and transactional create
+- [x] Wave 7.4 — expiry rules
+- [ ] Wave 7.5 — duplicate destination reuse
+- [ ] Wave 7.6 — OpenAPI, verification, docs, commit
 
 #### Wave 7.1 (completed)
 
@@ -102,12 +101,37 @@ Wave 7.2 (subscriptions module and plan resolution) is implemented and verified.
 - `findActiveSubscriptionForUser(userId)` — returns the user's most recent `ACTIVE` subscription whose `startsAt <= now` and whose `endsAt` is null or in the future, including the joined plan.
 - `findPlanByType(type)` — loads a plan by type (used for the FREE fallback).
 - `resolveActivePlan(userId)` — returns a `ResolvedPlan` (`type` + `dailyLinkLimit`, `activeLinkLimit`, `maxExpiryDays`, `allowsCustomAlias`, `allowsDetailedAnalytics`). Prefers the active subscription's plan; otherwise falls back to FREE, which covers no subscription, an expired `endsAt`, or a cancelled subscription (the downgrade policy). Throws `500 PLAN_NOT_CONFIGURED` when no plan row exists.
-- Wired `resolveActivePlan(userId)` into `createLink` (`src/modules/links/links.service.ts`) as a guard so link creation fails fast with `500 PLAN_NOT_CONFIGURED` if plans are not seeded; later waves will use the resolved plan for limits, expiry, and aliases.
+- Wired `resolveActivePlan(userId)` into `createLink` (`src/modules/links/links.service.ts`) as a guard so link creation fails fast with `500 PLAN_NOT_CONFIGURED` if plans are not seeded; later waves use the resolved plan for limits, expiry, and (post-MVP) aliases.
 - Verified: `npx tsc --noEmit` green; scripted checks — no subscription → FREE (10/30, 7d, no alias), active FREE subscription → FREE, active PRO subscription → PRO (500/10,000, 365d, alias + analytics allowed), expired PRO subscription → FREE fallback. Live E2E — register → login → create link returns `201` with an `ACTIVE` link.
+
+#### Wave 7.3 (completed)
+
+Wave 7.3 (usage limits and transactional create) is implemented.
+
+- Added `src/modules/usage/` — `usage.utils.ts` (`getUtcUsageDate`: midnight-UTC date from the UTC components of `now`, implementing the documented UTC timezone policy; `UsageCounter.usageDate` is `@db.Date`) and `usage.repository.ts` (`getDailyUsageCount(tx, userId, usageDate)` reads the daily count, defaulting to `0`; `incrementDailyUsage(tx, userId, usageDate)` upserts with an atomic `linksCreated: { increment: 1 }`). Both take a `Prisma.TransactionClient` so they only ever run inside the create transaction.
+- `src/modules/links/links.repository.ts` now drives `createLinkWithLimits` through an interactive transaction (`prisma.$transaction`): locks the user row first (`SELECT id FROM "users" WHERE id = ${userId} FOR UPDATE`), serializing concurrent creates for the same user; enforces the daily limit (`getDailyUsageCount >= plan.dailyLinkLimit`) and the active-link limit (`countActiveLinks >= plan.activeLinkLimit`), both `403 PLAN_LIMIT_REACHED`; creates the link; then increments the counter in the same atomic unit.
+- `countActiveLinks` counts `ACTIVE` links whose `expiresAt` is null or in the future — written forward-compatible with Wave 7.4 expiry rules.
+- Short-code collision retry moved *outside* the transaction (a Postgres error inside a transaction aborts it, so catch-and-retry inside is impossible): the loop retries the whole `$transaction` with a fresh Base62 code, bounded by `MAX_CODE_ATTEMPTS = 5`, retrying only `P2002` on `short_code`.
+- `createLink` (`links.service.ts`) resolves the plan, computes the UTC usage date, and delegates to `createLinkWithLimits`.
+- Verified: `npx tsc --noEmit` green; live E2E — valid URL creates a link and the `usage_counters` row reflects the created count.
+
+#### Wave 7.4 (completed)
+
+Wave 7.4 (expiry rules) is implemented.
+
+- Added `src/modules/links/expiry.ts` — pure `resolveExpiry(requested, plan, now)`: with no requested date it defaults to `now + maxExpiryDays` (7 days FREE, 365 days PRO); a Free user providing `expiresAt` gets `403 FEATURE_NOT_AVAILABLE`; a past/invalid date is `400 VALIDATION_ERROR`; a date beyond `now + maxExpiryDays` is `403 PLAN_LIMIT_REACHED`; a missing plan `maxExpiryDays` is `500 PLAN_NOT_CONFIGURED`. `maxExpiryDays` is captured into a local const so null-narrowing is bulletproof.
+- `createLinkSchema` accepts an optional `expiresAt` (ISO 8601 datetime, `z.string().datetime({ offset: true })`); `CreateLinkInput` gains `expiresAt?: string`.
+- `CreateLinkWithLimitsData` carries `expiresAt: Date`, persisted on the link inside the same transaction (usage limits untouched — expiry is orthogonal).
+- `countActiveLinks` already excluded past-expiry links, so the active-link limit stayed correct without changes.
+- Verified: `npx tsc --noEmit` green.
 
 ## Next Phase
 
-Wave 7.3: usage limits and transactional create — add `src/modules/usage/` (UTC-day helper, upsert of the daily `UsageCounter`, daily-link-limit check), count the user's active links, and move `createLink` into an interactive transaction that locks the user row (serializing concurrent creates), enforces both plan limits (`403 PLAN_LIMIT_REACHED`), creates the link with code retry, and increments the counter.
+Wave 7.5: duplicate destination reuse — when no custom alias is requested, return the user's existing active, unexpired link for the same normalized destination URL instead of creating a duplicate (per `docs/requirements.md` "Duplicate Destination URLs"), and only create a new link when none exists.
+
+## After MVP
+
+- Custom short-code aliases (formerly Wave 7.5) — Pro-only `customCode` support: alias-shape validation, reserved-code and protected-route rejection, `FEATURE_NOT_AVAILABLE` gating, `SHORT_CODE_UNAVAILABLE` collision handling, and `isCustom: true` links. This is intentionally deferred; do not re-scope it back into Phase 7.
 
 ## Local Commands
 
