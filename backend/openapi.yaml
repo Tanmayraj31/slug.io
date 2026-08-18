@@ -486,7 +486,6 @@ paths:
       summary: Resolve a short code
       description: Publicly resolves a short code to the original URL and records a click. No authentication required.
       operationId: resolveShortCode
-      x-status: planned
       parameters:
         - name: shortCode
           in: path

@@ -6,6 +6,7 @@ import authRouter from "./modules/auth/auth.routes.js";
 import { ApiError } from "./common/errors/app.error.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import linksRouter from "./modules/links/links.routes.js";
+import redirectRouter from "./modules/redirect/redirect.routes.js";
 const app = express();
 
 app.use(express.json());
@@ -15,6 +16,7 @@ app.use("/health", healthRouter);
 app.use("/api-docs", docsRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/links", linksRouter);
+app.use("/", redirectRouter);
 app.use((_request, _response, next) => {
   next(new ApiError(404, "NOT_FOUND", "Route not found."));
 });

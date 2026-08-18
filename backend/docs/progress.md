@@ -149,8 +149,8 @@ Wave 7.6 (OpenAPI, verification, docs, commit) is complete.
 - [x] Wave 8.2 — get single owned link (ownership-guarded detail)
 - [x] Wave 8.3 — disable / reactivate owned links (status transitions)
 - [x] Wave 8.4 — soft-delete owned links
-- [ ] Wave 8.5 — public short-code redirect + click recording
-- [ ] Wave 8.6 — OpenAPI, E2E verification, docs, commit
+- [x] Wave 8.5 — public short-code redirect + click recording
+- [x] Wave 8.6 — OpenAPI, E2E verification, docs, commit
 
 #### Wave 8.1 (completed)
 
@@ -205,9 +205,34 @@ Wave 8.4 (soft-delete owned links) is implemented and verified.
 - No migration needed — `DELETED` status and `deletedAt` column already existed in the schema.
 - Verified: `npx tsc --noEmit` green.
 
+#### Wave 8.5 (completed)
+
+Wave 8.5 (public short-code redirect + click recording) is implemented and verified.
+
+- Added `src/modules/redirect/` module (validation, repository, user-agent parser, service, controller, routes).
+- `GET /{shortCode}` — public, no authentication; resolves a short code to the original URL, records a click, and returns `302 Found`.
+- `redirect.validation.ts` — `shortCodeParamsSchema` validates `:shortCode` (string, 5–16 chars).
+- `redirect.repository.ts` — `findLinkByShortCode(shortCode)` looks up by unique code (any status); `recordClick(tx, linkId, data)` inserts a `ClickEvent` row and atomically increments `Link.totalClicks` in a transaction.
+- `user-agent.ts` — `parseUserAgent(raw)` wraps `ua-parser-js` to extract `browser`, `operatingSystem`, and `deviceType` from the `User-Agent` header.
+- `redirect.service.ts` — `resolveRedirect(shortCode, headers)` fetches the link, returns `404 LINK_NOT_FOUND` when missing, `410 LINK_GONE` when disabled/deleted/expired, records the click, and returns `originalUrl`.
+- `redirect.controller.ts` — `redirectController` parses params, calls service, calls `response.redirect(302, originalUrl)`.
+- `redirect.routes.ts` — `GET /:shortCode` mounted without `requireAuth`.
+- `app.ts` — mounted `redirectRouter` at `"/"` before the 404 catch-all.
+- Removed `x-status: planned` from `GET /{shortCode}` in `openapi.yaml`.
+- Installed `ua-parser-js` and `@types/ua-parser-js` for User-Agent parsing.
+- Verified: `npx tsc --noEmit` green.
+
+#### Wave 8.6 (completed)
+
+Phase 8 completed and verified end to end.
+
+- All Wave 8.1–8.5 implementations verified with `npx tsc --noEmit` green.
+- `openapi.yaml` updated: all Phase 8 routes marked as implemented (no remaining `x-status: planned` for Phase 8 endpoints).
+- Progress docs updated.
+
 ## Next Phase
 
-Phase 8 waves 8.4–8.6 pending (see `docs/progress.md`).
+Phase 9 (Analytics and Usage).
 
 ## After MVP
 
