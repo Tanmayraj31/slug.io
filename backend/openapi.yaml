@@ -279,7 +279,6 @@ paths:
       summary: List links
       description: Lists the authenticated user's links with status filtering and pagination.
       operationId: listLinks
-      x-status: planned
       security:
         - bearerAuth: []
       parameters:
@@ -324,7 +323,6 @@ paths:
       summary: Get link details
       description: Returns details for one owned link.
       operationId: getLink
-      x-status: planned
       security:
         - bearerAuth: []
       parameters:
@@ -359,7 +357,6 @@ paths:
       summary: Delete a link
       description: Soft-deletes an owned link for the retention period.
       operationId: deleteLink
-      x-status: planned
       security:
         - bearerAuth: []
       parameters:
@@ -392,7 +389,6 @@ paths:
       summary: Update link status
       description: Disables an active link or reactivates a disabled, non-expired link.
       operationId: updateLinkStatus
-      x-status: planned
       security:
         - bearerAuth: []
       parameters:

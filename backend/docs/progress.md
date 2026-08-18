@@ -143,9 +143,71 @@ Wave 7.6 (OpenAPI, verification, docs, commit) is complete.
 - Phase 7 verified end to end (`npx tsc --noEmit` green, live E2E above), and progress docs updated.
 - Committed in two commits: the Wave 7.5 implementation and the Phase 7 docs/OpenAPI update.
 
+### Phase 8: Link Management and Redirects
+
+- [x] Wave 8.1 — list links with status filter and pagination
+- [x] Wave 8.2 — get single owned link (ownership-guarded detail)
+- [x] Wave 8.3 — disable / reactivate owned links (status transitions)
+- [x] Wave 8.4 — soft-delete owned links
+- [ ] Wave 8.5 — public short-code redirect + click recording
+- [ ] Wave 8.6 — OpenAPI, E2E verification, docs, commit
+
+#### Wave 8.1 (completed)
+
+Wave 8.1 (list links with status filter and pagination) is implemented and verified.
+
+- `GET /api/v1/links` — protected by `requireAuth`; accepts query params `status` (optional `LinkStatus` enum), `page` (default 1), `pageSize` (default 20, max 100); returns `{ links, page, pageSize, total, totalPages }`.
+- `links.validation.ts` — added `listLinkQuerySchema` with `z.nativeEnum(LinkStatus)` for status and `z.coerce.number().int()` for pagination (query params arrive as strings).
+- `links.repository.ts` — added `FindLinksData` and `findLinks`: ownership-scoped `where` clause, `$transaction` batch (`findMany` + `count`) for consistent snapshot, `createdAt: "desc"` ordering, `skip/take` pagination.
+- `links.service.ts` — added `listLinks`: delegates to `findLinks`, computes `totalPages = Math.max(1, Math.ceil(total / pageSize))`, maps links through `toLinkDto`.
+- `links.controller.ts` — added `listLinksController`: parses `request.query`, throws `400 VALIDATION_ERROR` on invalid params, returns `200` with the paginated result.
+- `links.routes.ts` — `GET /` mounted behind `requireAuth`.
+- Naming convention: repository verb is `findLinks` (retrieves rows), service verb is `listLinks` (orchestrates + maps to DTO).
+- Verified: `npx tsc --noEmit` green; live E2E — register → login → create two links → list returns correct `total=2` → `pageSize=1` yields `totalPages=2` with one link per page → `?status=ACTIVE` returns all → `?status=DISABLED` returns zero → `?page=abc` / `?status=BOGUS` → `400 VALIDATION_ERROR`.
+
+#### Wave 8.2 (completed)
+
+Wave 8.2 (get single owned link, ownership-guarded detail) is implemented and verified.
+
+- `GET /api/v1/links/:id` — protected by `requireAuth`; accepts path param `id` (integer); returns `200 { link }`.
+- `links.validation.ts` — added `getLinkParamsSchema` with `z.coerce.number().int().positive()` for the `:id` param.
+- `links.repository.ts` — added `findLinkById(linkId, userId)`: ownership-scoped `findFirst` with `where: { id: linkId, userId }`. Returns `null` when the link does not exist or belongs to another user.
+- `links.service.ts` — added `getLinkById(linkId, userId)`: calls `findLinkById`, throws `404 LINK_NOT_FOUND` on null, maps through `toLinkDto()`.
+- `links.controller.ts` — added `getLinkByIdController`: parses `request.params` with `getLinkParamsSchema`, throws `400 VALIDATION_ERROR` on invalid params, returns `200 { link }`.
+- `links.routes.ts` — `GET /:id` mounted behind `requireAuth` (after `GET /` so the list route takes priority).
+- Naming convention: repository verb is `findLinkById` (retrieves one row), service verb is `getLinkById` (orchestrates + maps to DTO).
+- Removed stale `x-status: planned` from `GET /api/v1/links` (Wave 8.1) and `GET /api/v1/links/{id}` in `openapi.yaml`.
+- Verified: `npx tsc --noEmit` green.
+
+#### Wave 8.3 (completed)
+
+Wave 8.3 (disable / reactivate owned links, status transitions) is implemented and verified.
+
+- `PATCH /api/v1/links/:id/status` — protected by `requireAuth`; accepts path param `id` (integer) and body `{ status: "ACTIVE" | "DISABLED" }`; returns `200 { link }`.
+- `links.validation.ts` — added `updateLinkStatusSchema` with `z.enum([LinkStatus.ACTIVE, LinkStatus.DISABLED])` (excludes `DELETED`); `getLinkParamsSchema` reused for the `:id` param.
+- `links.repository.ts` — added `updateLinkStatus(linkId, userId, status)`: ownership-scoped `updateMany`, returns affected count (0 or 1). Atomic — no race between read and write.
+- `links.service.ts` — added `updateLinkStatus(userId, linkId, input)`: fetches link via `findLinkById`, validates transitions (`DELETED` → `409 LINK_DELETED`; `DISABLED → ACTIVE` when expired → `409 LINK_EXPIRED`; same status → no-op), delegates to `updateLinkStatusRepo`, maps through `toLinkDto()`.
+- `links.controller.ts` — added `updateLinkStatusController`: parses `request.params` and `request.body` separately, throws `400 VALIDATION_ERROR` on invalid input, returns `200 { link }`.
+- `links.routes.ts` — `PATCH /:id/status` mounted behind `requireAuth` (after `GET /:id`).
+- Removed `x-status: planned` from `PATCH /api/v1/links/{id}/status` in `openapi.yaml`.
+- Verified: `npx tsc --noEmit` green.
+
+#### Wave 8.4 (completed)
+
+Wave 8.4 (soft-delete owned links) is implemented and verified.
+
+- `DELETE /api/v1/links/:id` — protected by `requireAuth`; accepts path param `id` (integer); returns `204 No Content`.
+- `links.repository.ts` — added `softDeleteLink(linkId, userId)`: ownership-scoped `updateMany`, atomically sets `status: DELETED` and `deletedAt: new Date()`, returns affected count (0 or 1).
+- `links.service.ts` — added `deleteLink(linkId, userId)`: fetches link via `findLinkById`, throws `404 LINK_NOT_FOUND` on null, silent no-op when already `DELETED`, delegates to `softDeleteLinkRepo`.
+- `links.controller.ts` — added `deleteLinkController`: parses `request.params` with `getLinkParamsSchema`, throws `400 VALIDATION_ERROR` on invalid params, returns `204` with empty body.
+- `links.routes.ts` — `DELETE /:id` mounted behind `requireAuth` (after `PATCH /:id/status`).
+- Removed `x-status: planned` from `DELETE /api/v1/links/{id}` in `openapi.yaml`.
+- No migration needed — `DELETED` status and `deletedAt` column already existed in the schema.
+- Verified: `npx tsc --noEmit` green.
+
 ## Next Phase
 
-Phase 8: Link Management and Redirects — list, filter, disable, reactivate, and soft-delete owned links; resolve public short codes to `302 Found` redirects; record click counts (see `docs/roadmap.md`).
+Phase 8 waves 8.4–8.6 pending (see `docs/progress.md`).
 
 ## After MVP
 

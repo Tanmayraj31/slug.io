@@ -80,6 +80,8 @@ Never commit `.env`, `node_modules`, build output, or generated Prisma Client fi
 
 ## Phase 8: Link Management and Redirects
 
+> Status: **in progress** — Waves 8.1–8.3 completed; Waves 8.4–8.6 pending.
+
 - List, filter, disable, reactivate, and soft-delete owned links.
 - Resolve public short codes.
 - Return `302 Found` redirects.

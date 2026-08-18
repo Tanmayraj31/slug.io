@@ -17,6 +17,13 @@ export interface CreateLinkWithLimitsData extends CreateLinkData {
   expiresAt: Date;
 }
 
+export interface FindLinksData {
+  status: LinkStatus | undefined;
+  page: number;
+  pageSize: number;
+}
+
+
 const MAX_CODE_ATTEMPTS = 5;
 
 function isShortCodeCollision(error: unknown): boolean {
@@ -104,6 +111,54 @@ export async function createLinkWithLimits(
       throw error;
     }
   }
-
   throw new Error("Failed to generate a unique short code.");
+}
+
+export async function findLinks(
+  userId: number,
+  data: FindLinksData
+): Promise<{ links: Prisma.LinkModel[]; total: number }> {
+  const where: Prisma.LinkWhereInput = {
+    userId,
+    ...(data.status ? { status: data.status } : {}),
+  };
+  const skip = (data.page - 1) * data.pageSize;
+
+  const [links, total] = await prisma.$transaction([
+    prisma.link.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: data.pageSize,
+    }),
+    prisma.link.count({ where }),
+  ]);
+
+  return { links, total };
+}
+export async function findLinkById(
+  linkId: number,
+  userId: number
+): Promise<Prisma.LinkModel | null> {
+  return prisma.link.findFirst({ where: { id: linkId, userId } });
+}
+
+
+export async function updateLinkStatus(linkId: number, userId: number, status: LinkStatus):Promise<number> {
+ const result = await prisma.link.updateMany({
+  where:{id:linkId, userId},
+  data:{status},
+ });
+
+ return result.count;
+
+}
+
+export async function softDeleteLink(linkId: number, userId: number): Promise<number> {
+  const result = await prisma.link.updateMany({
+    where: { id: linkId, userId },
+    data: { status: LinkStatus.DELETED, deletedAt: new Date() },
+  });
+
+  return result.count;
 }

@@ -12,3 +12,13 @@ export interface LinkResponseDto {
   updatedAt: Date;
   shortUrl: string;
 }
+
+export interface LinkListResponseDto {
+  links: LinkResponseDto[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+
