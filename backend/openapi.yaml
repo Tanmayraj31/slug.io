@@ -443,7 +443,6 @@ paths:
       summary: Get link analytics
       description: Returns total clicks for all users. Detailed analytics (clicks over time, referrer, browser, OS, device, country) are available only to Pro users.
       operationId: getLinkAnalytics
-      x-status: planned
       security:
         - bearerAuth: []
       parameters:

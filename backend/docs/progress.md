@@ -230,9 +230,26 @@ Phase 8 completed and verified end to end.
 - `openapi.yaml` updated: all Phase 8 routes marked as implemented (no remaining `x-status: planned` for Phase 8 endpoints).
 - Progress docs updated.
 
+### Phase 9: Analytics and Usage
+
+- [x] Wave 9.1 — analytics module foundation + total clicks endpoint
+
+#### Wave 9.1 (completed)
+
+Wave 9.1 (analytics module foundation + total clicks endpoint) is implemented and verified.
+
+- Added the layered `src/modules/analytics/` module (types, repository, service, controller).
+- `analytics.types.ts` — `AnalyticsResponseDto` (`totalClicks` + nullable `detailed`), `DetailedAnalyticsDto`, `AggregationBucket`, `ClicksOverTimeBucket` matching the OpenAPI `AnalyticsResponse` schema.
+- `analytics.repository.ts` — `findLinkForAnalytics(linkId, userId)`: ownership-scoped `findFirst` with `select: { id, totalClicks }`.
+- `analytics.service.ts` — `getLinkAnalytics(linkId, userId)`: returns `{ totalClicks, detailed: null }`; throws `404 LINK_NOT_FOUND` when the link does not exist or belongs to another user.
+- `analytics.controller.ts` — `getLinkAnalyticsController`: validates `:id` param via `getLinkParamsSchema`, extracts `userId` from `AuthenticatedRequest`, calls service, returns `200`.
+- Route `GET /api/v1/links/:id/analytics` mounted in `links.routes.ts` behind `requireAuth`.
+- Removed `x-status: planned` from `GET /api/v1/links/{id}/analytics` in `openapi.yaml`.
+- Verified: `npx tsc --noEmit` green.
+
 ## Next Phase
 
-Phase 9 (Analytics and Usage).
+Phase 9 (Analytics and Usage) — Wave 9.2 (plan-based gating).
 
 ## After MVP
 

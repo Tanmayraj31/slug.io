@@ -21,7 +21,6 @@ export const updateLinkStatusSchema = z.object({
   status: z.enum([LinkStatus.ACTIVE, LinkStatus.DISABLED]),
 });
 
-
 export type CreateLinkInput = z.infer<typeof createLinkSchema>;
 export type ListLinkQuery = z.infer<typeof listLinkQuerySchema>;
 export type GetLinkQuery = z.infer<typeof getLinkParamsSchema>;
