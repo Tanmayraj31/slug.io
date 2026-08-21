@@ -233,6 +233,9 @@ Phase 8 completed and verified end to end.
 ### Phase 9: Analytics and Usage
 
 - [x] Wave 9.1 — analytics module foundation + total clicks endpoint
+- [x] Wave 9.2 — plan-based gating (Free vs Pro)
+- [x] Wave 9.3 — detailed analytics queries (Pro only)
+- [x] Wave 9.4 — OpenAPI, verification, docs
 
 #### Wave 9.1 (completed)
 
@@ -247,9 +250,35 @@ Wave 9.1 (analytics module foundation + total clicks endpoint) is implemented an
 - Removed `x-status: planned` from `GET /api/v1/links/{id}/analytics` in `openapi.yaml`.
 - Verified: `npx tsc --noEmit` green.
 
+#### Wave 9.2 (completed)
+
+Wave 9.2 (plan-based gating) is implemented.
+
+- `analytics.service.ts` calls `resolveActivePlan(userId)` from `subscriptions.service.ts`.
+- When `allowsDetailedAnalytics` is false (Free plan or expired Pro), returns `{ totalClicks, detailed: null }`.
+- When true, proceeds to detailed aggregation (Wave 9.3).
+
+#### Wave 9.3 (completed)
+
+Wave 9.3 (detailed analytics queries, Pro only) is implemented.
+
+- `analytics.repository.ts` — `aggregateClicksOverTime(linkId, since)`: fetches `clickedAt` for all clicks within the retention window, groups by date (`YYYY-MM-DD`) in memory, returns `{ date, clicks }[]` sorted chronologically.
+- `analytics.repository.ts` — `aggregateByField(linkId, since, field)`: uses Prisma `groupBy` on the specified field (`referrer`, `browser`, `operatingSystem`, `deviceType`, `countryCode`), returns `{ label, clicks }[]` sorted by count descending.
+- Service maps generic `label` to the OpenAPI-specific field names (`referrer`, `browser`, `operatingSystem`, `deviceType`, `countryCode`).
+- `RETENTION_DAYS = 90` — clicks older than 90 days are excluded from detailed analytics but still counted in `totalClicks`.
+- All six aggregations run in parallel via `Promise.all`.
+
+#### Wave 9.4 (completed)
+
+Phase 9 verified end to end.
+
+- All Wave 9.1–9.3 implementations verified with `npx tsc --noEmit` green.
+- `openapi.yaml` analytics endpoint already marked as implemented (Wave 9.1).
+- Progress docs updated.
+
 ## Next Phase
 
-Phase 9 (Analytics and Usage) — Wave 9.2 (plan-based gating).
+Phase 10 (Security and Testing).
 
 ## After MVP
 

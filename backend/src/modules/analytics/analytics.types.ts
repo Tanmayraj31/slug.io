@@ -10,11 +10,11 @@ export interface ClicksOverTimeBucket {
 
 export interface DetailedAnalyticsDto {
   clicksOverTime: ClicksOverTimeBucket[];
-  referrers: AggregationBucket[];
-  browsers: AggregationBucket[];
-  operatingSystems: AggregationBucket[];
-  deviceTypes: AggregationBucket[];
-  countries: AggregationBucket[];
+  referrers: { referrer: string | null; clicks: number }[];
+  browsers: { browser: string | null; clicks: number }[];
+  operatingSystems: { operatingSystem: string | null; clicks: number }[];
+  deviceTypes: { deviceType: string | null; clicks: number }[];
+  countries: { countryCode: string | null; clicks: number }[];
 }
 
 export interface AnalyticsResponseDto {
