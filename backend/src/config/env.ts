@@ -48,6 +48,55 @@ const cookieSecure = parseBoolean(process.env.COOKIE_SECURE, "COOKIE_SECURE");
 
 const publicBaseUrl = process.env.PUBLIC_BASE_URL ?? `http://localhost:${port}`;
 
+function parseStringList(raw: string | undefined): string[] {
+  if (raw === undefined || raw.trim() === "") {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function parseBooleanWithDefault(
+  raw: string | undefined,
+  fallback: boolean,
+  name: string
+): boolean {
+  if (raw === undefined) {
+    return fallback;
+  }
+  if (raw === "true") {
+    return true;
+  }
+  if (raw === "false") {
+    return false;
+  }
+  throw new Error(`${name} must be "true" or "false".`);
+}
+
+function parsePositiveInt(
+  raw: string | undefined,
+  fallback: number,
+  name: string
+): number {
+  const value = raw === undefined ? fallback : Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return value;
+}
+
+const corsOrigins = parseStringList(process.env.CORS_ORIGIN);
+
+const bodyLimit = process.env.BODY_LIMIT ?? "16kb";
+
+const trustProxy = parseBooleanWithDefault(
+  process.env.TRUST_PROXY,
+  false,
+  "TRUST_PROXY"
+);
+
 export const env = {
   port,
   databaseUrl,
@@ -57,4 +106,7 @@ export const env = {
   cookieName,
   cookieSecure,
   publicBaseUrl,
+  corsOrigins,
+  bodyLimit,
+  trustProxy,
 };

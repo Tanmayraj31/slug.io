@@ -7,9 +7,15 @@ import { ApiError } from "./common/errors/app.error.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import linksRouter from "./modules/links/links.routes.js";
 import redirectRouter from "./modules/redirect/redirect.routes.js";
+import { corsMiddleware, securityHeaders } from "./common/security/security.js";
+import { env } from "./config/env.js";
 const app = express();
 
-app.use(express.json());
+app.set("trust proxy", env.trustProxy);
+
+app.use(securityHeaders);
+app.use(corsMiddleware);
+app.use(express.json({ limit: env.bodyLimit }));
 app.use(cookieParser());
 
 app.use("/health", healthRouter);
