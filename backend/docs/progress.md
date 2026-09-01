@@ -276,9 +276,52 @@ Phase 9 verified end to end.
 - `openapi.yaml` analytics endpoint already marked as implemented (Wave 9.1).
 - Progress docs updated.
 
-## Next Phase
+### Phase 10: Security and Testing
 
-Phase 10 (Security and Testing).
+- [x] Wave 10.1 — security headers, CORS, request-body limit, trust proxy
+- [x] Wave 10.2 — per-group rate limiting (auth, api, redirect)
+- [x] Wave 10.3 — test infrastructure (Vitest + supertest + test DB)
+- [ ] Wave 10.4 — unit tests (pure logic: expiry, URL validation, short-code, usage, tokens, zod)
+- [ ] Wave 10.5 — integration/E2E tests (auth, links, redirect, analytics)
+- [ ] Wave 10.6 — OpenAPI, verification, docs, commit
+
+#### Wave 10.1 (completed)
+
+Wave 10.1 (security headers, CORS, request-body limit, trust proxy) is implemented and verified.
+
+- Installed `helmet` and `cors`.
+- `src/common/security/security.ts` — `securityHeaders` (helmet) and `corsMiddleware` (cors with an exact-origin allowlist).
+- `src/config/env.ts` — added `corsOrigins` (`CORS_ORIGIN`, comma-separated), `bodyLimit` (`BODY_LIMIT`, default `16kb`), `trustProxy` (`TRUST_PROXY`, default `false`).
+- `src/app.ts` — `app.set("trust proxy", env.trustProxy)`; mounts helmet and CORS first, then `express.json({ limit: env.bodyLimit })` and cookie-parser.
+- Helmet sets ~11 security headers on every response (CSP, HSTS, `X-Content-Type-Options: nosniff`, frame protections, etc.). CORS allow-lists exact origins with `credentials: true` so the HttpOnly refresh-token cookie works cross-origin; disallowed origins get no `Access-Control-Allow-Origin` header (browser blocks). The body limit feeds the existing `413 PAYLOAD_TOO_LARGE` handler; `trust proxy` keeps `req.ip` correct behind a reverse proxy without trusting spoofable headers in local dev.
+- Verified: `npx tsc --noEmit` green; live E2E — helmet headers present on `GET /health/live`, oversized body returns `413 PAYLOAD_TOO_LARGE`, allowed CORS origin gets `Access-Control-Allow-Origin` while a disallowed origin gets none.
+
+#### Wave 10.2 (completed)
+
+Wave 10.2 (per-group rate limiting) is implemented and verified.
+
+- Installed `express-rate-limit`.
+- `src/common/security/rate-limit.ts` — `authRateLimiter` (IP-keyed, 10/15min), `apiRateLimiter` (user-id keyed, 120/1min), `redirectRateLimiter` (IP-keyed, 300/1min). All share a handler that calls `next(new ApiError(429, "RATE_LIMITED", ...))` and sets `Retry-After`, so 429 flows through the central error handler for a consistent `{ error: { code: "RATE_LIMITED" } }` envelope. `apiRateLimiter` uses `ipKeyGenerator` for its IP fallback so IPv6 spelling variants cannot bypass the limit.
+- `src/config/env.ts` — `authRateLimit`, `apiRateLimit`, `redirectRateLimit` via `parseRateLimit`; env-tunable with `RATE_LIMIT_*_MAX` / `RATE_LIMIT_*_WINDOW_MS`.
+- Route wiring — `register`/`login`/`refresh` behind `authRateLimiter`; `/me`/`logout` behind `apiRateLimiter` (after `requireAuth`); all link routes as `[requireAuth, apiRateLimiter, controller]`; the public redirect behind `redirectRateLimiter`.
+- Verified: `npx tsc --noEmit` green; live E2E — with a lowered `RATE_LIMIT_AUTH_MAX=2`, requests 3+ return `429` with the `RATE_LIMITED` envelope, `RateLimit-*` headers, and `Retry-After: 60`; the redirect limiter likewise returns `429` at its lowered limit.
+
+#### Wave 10.3 (completed)
+
+Wave 10.3 (test infrastructure) is implemented and verified.
+
+- Installed `vitest`, `supertest`, `@types/supertest`.
+- `vitest.config.ts` — node environment, `globalSetup`/`setupFiles`, 30s test timeout, `fileParallelism: false` (test files share one DB, so they run serially).
+- `tests/global-setup.ts` — creates the `url_shortener_test` database if missing (via the `postgres` maintenance DB), runs `prisma migrate deploy`, and seeds the FREE/PRO plans.
+- `tests/setup.ts` — loads `.env.test` before the app/prisma modules are imported (ESM import-order safe via dynamic `await import`), and registers an `afterEach` that truncates all non-plan tables for test isolation.
+- `tests/helpers/db.ts` — `clearDatabase()` truncates `users`, `subscriptions`, `links`, `click_events`, `usage_counters`, `refresh_tokens`.
+- `.env.test` (gitignored) — test DB URL, a distinct `JWT_SECRET`, and relaxed `RATE_LIMIT_*` values so integration tests are not throttled.
+- `tsconfig.test.json` — typechecks `src` + `tests` + `vitest.config.ts`; `package.json` scripts `test`, `test:watch`, `typecheck:test`.
+- Verified: `npx tsc --noEmit`, `npm run typecheck:test`, and `npm test` (smoke tests: health 200, register against the test DB, and DB-isolation re-register) all green.
+
+## Next
+
+Wave 10.4 (unit tests).
 
 ## After MVP
 
@@ -288,10 +331,13 @@ Phase 10 (Security and Testing).
 
 ```powershell
 npm run dev
+npm test
+npm run test:watch
+npm run typecheck:test
+npx tsc --noEmit
 docker compose up -d
 docker compose down
 npx prisma migrate status
 npx prisma generate
-npx tsc --noEmit
 npm run db:seed
 ```
