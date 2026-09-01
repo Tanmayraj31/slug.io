@@ -97,6 +97,52 @@ const trustProxy = parseBooleanWithDefault(
   "TRUST_PROXY"
 );
 
+interface RateLimitConfig {
+  max: number;
+  windowMs: number;
+}
+
+function parseRateLimit(
+  rawMax: string | undefined,
+  rawWindowMs: string | undefined,
+  fallbackMax: number,
+  fallbackWindowMs: number,
+  name: string
+): RateLimitConfig {
+  return {
+    max: parsePositiveInt(rawMax, fallbackMax, `${name}_MAX`),
+    windowMs: parsePositiveInt(
+      rawWindowMs,
+      fallbackWindowMs,
+      `${name}_WINDOW_MS`
+    ),
+  };
+}
+
+const authRateLimit = parseRateLimit(
+  process.env.RATE_LIMIT_AUTH_MAX,
+  process.env.RATE_LIMIT_AUTH_WINDOW_MS,
+  10,
+  15 * 60 * 1000,
+  "RATE_LIMIT_AUTH"
+);
+
+const apiRateLimit = parseRateLimit(
+  process.env.RATE_LIMIT_API_MAX,
+  process.env.RATE_LIMIT_API_WINDOW_MS,
+  120,
+  60 * 1000,
+  "RATE_LIMIT_API"
+);
+
+const redirectRateLimit = parseRateLimit(
+  process.env.RATE_LIMIT_REDIRECT_MAX,
+  process.env.RATE_LIMIT_REDIRECT_WINDOW_MS,
+  300,
+  60 * 1000,
+  "RATE_LIMIT_REDIRECT"
+);
+
 export const env = {
   port,
   databaseUrl,
@@ -109,4 +155,7 @@ export const env = {
   corsOrigins,
   bodyLimit,
   trustProxy,
+  authRateLimit,
+  apiRateLimit,
+  redirectRateLimit,
 };

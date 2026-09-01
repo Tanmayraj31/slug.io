@@ -7,13 +7,14 @@ import {
   registerController,
 } from "./auth.controller.js";
 import { requireAuth } from "./auth.middleware.js";
+import { apiRateLimiter, authRateLimiter } from "../../common/security/rate-limit.js";
 
 const authRouter = Router();
 
-authRouter.post("/register", registerController);
-authRouter.post("/login", loginController);
-authRouter.post("/refresh", refreshController);
-authRouter.post("/logout", logoutController);
-authRouter.get("/me", requireAuth, meController);
+authRouter.post("/register", authRateLimiter, registerController);
+authRouter.post("/login", authRateLimiter, loginController);
+authRouter.post("/refresh", authRateLimiter, refreshController);
+authRouter.post("/logout", apiRateLimiter, logoutController);
+authRouter.get("/me", requireAuth, apiRateLimiter, meController);
 
 export default authRouter;
