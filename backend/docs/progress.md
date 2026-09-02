@@ -282,7 +282,7 @@ Phase 9 verified end to end.
 - [x] Wave 10.2 — per-group rate limiting (auth, api, redirect)
 - [x] Wave 10.3 — test infrastructure (Vitest + supertest + test DB)
 - [x] Wave 10.4 — unit tests (pure logic: expiry, URL validation, short-code, usage, tokens, zod)
-- [ ] Wave 10.5 — integration/E2E tests (auth, links, redirect, analytics)
+- [x] Wave 10.5 — integration/E2E tests (auth, links, redirect, analytics)
 - [ ] Wave 10.6 — OpenAPI, verification, docs, commit
 
 #### Wave 10.1 (completed)
@@ -332,9 +332,22 @@ Wave 10.4 (unit tests for pure business logic) is implemented and verified.
 - All unit tests are pure logic — no DB or HTTP involved; they run under the existing vitest setup.
 - Verified: `npm run typecheck:test` and `npm test` green (110 tests across 7 test files; smoke test suite still passes).
 
+#### Wave 10.5 (completed)
+
+Wave 10.5 (integration/E2E tests) is implemented and verified.
+
+- Added `tests/helpers/auth.ts` — `registerAndLogin(app, overrides)` registers and logs in a real user via HTTP (captures the `accessToken` and `Set-Cookie` string), plus `authHeader(accessToken)` for `Authorization: Bearer` headers. Reused across all integration suites.
+- `tests/integration/auth.test.ts` (19 tests) — register (201 shape, 409 `EMAIL_TAKEN`, 400 validation), login (200 with accessToken + cookie, 401 `INVALID_CREDENTIALS` for wrong password and unknown email, 400 validation), `/me` (200, 401 missing/invalid token), refresh (200 rotation, 401 missing cookie, 401 reuse-replay detection), logout (204, 401 missing cookie, revoked token unusable after logout), and a full register→login→me→refresh→me→logout→refresh-401 session flow.
+- `tests/integration/links.test.ts` (24 tests) — create (201 link shape, URL normalization, 400 `INVALID_URL` for blocked hosts, 400 validation, 401 unauth, duplicate-destination reuse), list (pagination, status filter, 400 invalid query), get by id (200, 404 nonexistent, 404 other user's link, 400 bad id), disable/reactivate (200, 404, 400 invalid status), soft-delete (204, status=DELETED on GET, 404 nonexistent), and plan enforcement (Free custom-expiry 403 `FEATURE_NOT_AVAILABLE`, Pro custom-expiry 201, expiry beyond max 403 `PLAN_LIMIT_REACHED`).
+- `tests/integration/redirect.test.ts` (8 tests) — 302 with Location header, click event recorded + `totalClicks` incremented, 404 unknown code, 400 too-short code, 410 `LINK_GONE` for disabled and expired links, user-agent details persisted, and multi-click `totalClicks` accumulation.
+- `tests/integration/analytics.test.ts` (6 tests) — Free plan `{ totalClicks, detailed: null }`, zero-click link, Pro plan detailed breakdown (all six aggregation buckets), 404 nonexistent, 404 other user's link, 401 unauth.
+- `tests/integration/errors.test.ts` (6 tests) — consistent `{ error: { code, message } }` envelope, 404 catch-all, 400 `INVALID_JSON` for malformed body, and helmet security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`).
+- All integration tests run over real HTTP (supertest) against the `url_shortener_test` DB, hit real rate-limit/security middleware, and rely on the existing global `afterEach` truncation for isolation.
+- Verified: `npm run typecheck:test` and `npm test` green (173 tests across 12 test files, all suites passing).
+
 ## Next
 
-Wave 10.5 (integration/E2E tests).
+Wave 10.6 (OpenAPI, verification, docs, commit).
 
 ## After MVP
 
