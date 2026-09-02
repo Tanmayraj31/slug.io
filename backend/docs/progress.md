@@ -281,7 +281,7 @@ Phase 9 verified end to end.
 - [x] Wave 10.1 — security headers, CORS, request-body limit, trust proxy
 - [x] Wave 10.2 — per-group rate limiting (auth, api, redirect)
 - [x] Wave 10.3 — test infrastructure (Vitest + supertest + test DB)
-- [ ] Wave 10.4 — unit tests (pure logic: expiry, URL validation, short-code, usage, tokens, zod)
+- [x] Wave 10.4 — unit tests (pure logic: expiry, URL validation, short-code, usage, tokens, zod)
 - [ ] Wave 10.5 — integration/E2E tests (auth, links, redirect, analytics)
 - [ ] Wave 10.6 — OpenAPI, verification, docs, commit
 
@@ -319,9 +319,22 @@ Wave 10.3 (test infrastructure) is implemented and verified.
 - `tsconfig.test.json` — typechecks `src` + `tests` + `vitest.config.ts`; `package.json` scripts `test`, `test:watch`, `typecheck:test`.
 - Verified: `npx tsc --noEmit`, `npm run typecheck:test`, and `npm test` (smoke tests: health 200, register against the test DB, and DB-isolation re-register) all green.
 
+#### Wave 10.4 (completed)
+
+Wave 10.4 (unit tests for pure business logic) is implemented and verified.
+
+- Added `tests/unit/url-validation.test.ts` — `validateAndNormalizeUrl` coverage: valid http/https URLs, normalization (default-port stripping, hash-fragment removal, hostname lowercasing), rejected protocols (`ftp:`, `file:`, `javascript:`, `data:`), blocked hostnames (`localhost`, `*.localhost`, `metadata`, `metadata.google.internal`), private IPv4 ranges (0/8, 10/8, 127/8, 172.16/12, 169.254/16, 192.168/16), private IPv6 (::, ::1, fc00::/7 ULA, fe80::/10 link-local), public address acceptance, and the 2048-char length boundary.
+- Added `tests/unit/short-code.test.ts` — `generateShortCode` length defaults/custom lengths, Base62 charset only, uniqueness across calls, and length-1 edge case.
+- Added `tests/unit/expiry.test.ts` — `resolveExpiry` against real `ResolvedPlan` fixtures: default expiry = now + `maxExpiryDays` (FREE 7d, PRO 365d), `500 PLAN_NOT_CONFIGURED` when `maxExpiryDays` is null, `403 FEATURE_NOT_AVAILABLE` for Free custom expiry, `400 VALIDATION_ERROR` for past/invalid dates, `403 PLAN_LIMIT_REACHED` past the max window.
+- Added `tests/unit/usage-utils.test.ts` — `getUtcUsageDate` returns midnight-UTC dates, handles day boundaries and year/month rollover, defaults to current time, and does not mutate its input.
+- Added `tests/unit/token-service.test.ts` — `signAccessToken`/`verifyAccessToken` round-trips, `401 UNAUTHORIZED` for garbage/empty/foreign-secret/expired tokens, `generateRefreshToken` Base64url safety / 64-char length / uniqueness, and `hashToken` determinism against a known SHA-256 digest.
+- Added `tests/unit/zod-schemas.test.ts` — behavior of `registerSchema`, `loginSchema`, `createLinkSchema`, `listLinkQuerySchema`, `getLinkParamsSchema`, `updateLinkStatusSchema`, and `shortCodeParamsSchema`: accepted/rejected inputs, email trim+lowercase, query-param string coercion, defaults, and enum constraints.
+- All unit tests are pure logic — no DB or HTTP involved; they run under the existing vitest setup.
+- Verified: `npm run typecheck:test` and `npm test` green (110 tests across 7 test files; smoke test suite still passes).
+
 ## Next
 
-Wave 10.4 (unit tests).
+Wave 10.5 (integration/E2E tests).
 
 ## After MVP
 
