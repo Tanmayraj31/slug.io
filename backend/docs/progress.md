@@ -283,7 +283,7 @@ Phase 9 verified end to end.
 - [x] Wave 10.3 — test infrastructure (Vitest + supertest + test DB)
 - [x] Wave 10.4 — unit tests (pure logic: expiry, URL validation, short-code, usage, tokens, zod)
 - [x] Wave 10.5 — integration/E2E tests (auth, links, redirect, analytics)
-- [ ] Wave 10.6 — OpenAPI, verification, docs, commit
+- [x] Wave 10.6 — OpenAPI, verification, docs, commit
 
 #### Wave 10.1 (completed)
 
@@ -345,9 +345,20 @@ Wave 10.5 (integration/E2E tests) is implemented and verified.
 - All integration tests run over real HTTP (supertest) against the `url_shortener_test` DB, hit real rate-limit/security middleware, and rely on the existing global `afterEach` truncation for isolation.
 - Verified: `npm run typecheck:test` and `npm test` green (173 tests across 12 test files, all suites passing).
 
+#### Wave 10.6 (completed)
+
+Wave 10.6 (OpenAPI, verification, docs, commit) is complete — Phase 10 is done.
+
+- Aligned `openapi.yaml` with the tested runtime shape: the `LinkListResponse` schema now uses `links` (matching the code and integration tests) instead of `items`, and documents `totalPages` (previously omitted). This was the one spec/code divergence found.
+- Verified the OpenAPI description with `redocly lint`: `openapi.yaml` is valid (0 errors; the 5 remaining warnings are default-rule cosmetics — missing `license`, localhost server URL, health routes without a 4XX, and the `302` redirect not counting as a 2XX).
+- Final verification: `npx tsc --noEmit` clean, `npm run typecheck:test` clean, and `npm test` green — 173 tests across 12 files (unit + integration + smoke).
+- Progress docs updated; phase committed per the roadmap checkpoint.
+
+**Phase 10 complete.** The Phase 10 aim — "critical workflows are automated and failure responses are consistent" — is met: unit tests cover pure business logic, integration/E2E tests cover register → create → redirect → analytics end to end, and every error path returns the consistent `{ error: { code, message } }` envelope.
+
 ## Next
 
-Wave 10.6 (OpenAPI, verification, docs, commit).
+Phase 11 (React Client).
 
 ## After MVP
 

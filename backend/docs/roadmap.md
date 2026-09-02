@@ -99,7 +99,7 @@ Never commit `.env`, `node_modules`, build output, or generated Prisma Client fi
 
 ## Phase 10: Security and Testing
 
-> Status: **in progress** — Waves 10.1–10.5 (security headers/CORS/body limit, per-group rate limiting, Vitest + supertest test infrastructure with a dedicated test DB, unit tests for pure business logic, and integration/E2E tests) are implemented, verified, and committed. Remaining: Wave 10.6 wrap-up.
+> Status: **completed** — Waves 10.1–10.6 (security headers/CORS/body limit, per-group rate limiting, Vitest + supertest test infrastructure with a dedicated test DB, unit tests for pure business logic, integration/E2E tests, and the OpenAPI/verification/docs wrap-up) are implemented, verified, and committed.
 
 - Add security headers, CORS, request-size limits, and rate limits.
 - Add unit and integration tests for critical business rules.

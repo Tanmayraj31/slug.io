@@ -709,21 +709,32 @@ components:
     LinkListResponse:
       type: object
       required:
-        - items
+        - links
         - page
         - pageSize
         - total
+        - totalPages
       properties:
-        items:
+        links:
           type: array
           items:
             $ref: "#/components/schemas/LinkResponse"
         page:
           type: integer
+          description: Current page number (1-indexed).
+          example: 1
         pageSize:
           type: integer
+          description: Number of links per page.
+          example: 20
         total:
           type: integer
+          description: Total number of matching links.
+          example: 42
+        totalPages:
+          type: integer
+          description: Total number of pages.
+          example: 3
     UpdateLinkStatusRequest:
       type: object
       required:
