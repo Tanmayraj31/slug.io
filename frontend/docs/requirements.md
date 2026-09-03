@@ -25,6 +25,22 @@ The frontend does not contain business logic for link validation, plan enforceme
 | Icons | Lucide React |
 | Linting | ESLint + Prettier |
 | Formatting | Prettier |
+| Typography | Inter (Google Fonts) |
+
+### 2.1 Design System (Firecrawl-Inspired, Light Theme)
+
+The UI follows a light-mode, Firecrawl-inspired design language established in Phase 1.5. All new components/pages should reuse the tokens and utilities below rather than introducing ad-hoc colors.
+
+- **Palette**: orange accent scale defined in `globals.css` `@theme` (`--color-primary-*`, e.g. `#f97316`). Neutral surfaces are `gray`/white.
+- **Gradients**: orange → amber, e.g. `from-orange-600 via-orange-500 to-amber-500` (buttons) and `from-orange-600 to-amber-400` (logos/icons).
+- **Custom utilities** (in `globals.css`): `gradient-text`, `glass-card`, `glass-card-hover`, `glow-hover`, `input-field`, `mesh-bg`.
+- **Cards**: glassmorphism via `glass-card` / `glass-card-hover` (use the `Card` component in `components/ui/`).
+- **Buttons**: use the `Button` component — primary (gradient), secondary, ghost, destructive.
+- **Inputs**: use the `Input` component — labeled, optional icon, orange focus ring.
+- **Typography**: prefer `text-base` or larger for body text; headings use bold weights and `gradient-text` on key words.
+- **Transitions**: interactive elements use `transition-all duration-300` plus orange glow shadows on hover.
+- **Backgrounds**: pages use the `mesh-bg` utility on a `min-h-screen` root.
+- **Header**: all pages render the shared sticky frosted-glass `Header` component.
 
 ---
 

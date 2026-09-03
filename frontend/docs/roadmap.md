@@ -37,6 +37,15 @@ Never commit `.env`, `node_modules`, or build output.
 
 ---
 
+## Phase 1.5: Design System & Base UI (Completed ahead of plan)
+
+> Carried out as part of the Firecrawl-inspired UI work; see `docs/progress.md`. These reusable primitives are already implemented and should be reused in later phases rather than recreated:
+> - `components/ui/Button.tsx`, `components/ui/Input.tsx`, `components/ui/Card.tsx`
+> - `components/layout/Header.tsx` (shared sticky header)
+> - Design tokens + custom utilities in `globals.css` (`gradient-text`, `glass-card`, `glow-hover`, `mesh-bg`, etc.)
+
+---
+
 ## Phase 2: API Client and Types
 
 - Create `src/types/api.ts` with all API response types (mirrors backend DTOs).
@@ -73,7 +82,7 @@ Never commit `.env`, `node_modules`, or build output.
 
 ## Phase 4: Link Creation
 
-- Create `src/components/ui/Button.tsx`, `Input.tsx`, `Card.tsx`, `Badge.tsx`, `Spinner.tsx`.
+- UI primitives (Button, Input, Card) already exist from Phase 1.5 — build the remaining `Badge.tsx` and `Spinner.tsx`.
 - Create `src/components/links/LinkCreationForm.tsx`:
   - URL input field.
   - Submit button with loading state.
@@ -164,7 +173,9 @@ Never commit `.env`, `node_modules`, or build output.
 
 ---
 
-## Phase 9: Accessibility and Error Handling
+## Phase 9: Accessibility and Error Handling (Completed)
+
+> Carried out as described; see `docs/progress.md` for full details. Phase 9 delivered visible focus indicators, ARIA attributes (`aria-describedby`, `role="alert"`, `aria-busy`, `role="status"`, `aria-hidden` on decorative icons, chart `role="img"` + `sr-only` data summaries), keyboard navigation (skip-to-content link, dialog focus trap), a semantic `role="tablist"` filter group, screen-reader-friendly chart/textual alternatives, and full backend error-code coverage (`PLAN_LIMIT_REACHED`, `FEATURE_NOT_AVAILABLE`, `VALIDATION_ERROR` field-level parsing, `NETWORK_ERROR`).
 
 - Add visible focus indicators to all interactive elements.
 - Add `aria-label` to icon-only buttons.

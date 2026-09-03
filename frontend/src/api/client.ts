@@ -5,12 +5,14 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 export class ApiClientError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly details?: Record<string, string>;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details?: Record<string, string>) {
     super(message);
     this.name = "ApiClientError";
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -29,16 +31,16 @@ export function clearAccessToken(): void {
 }
 
 const REFRESH_EXEMPT_PATHS = new Set([
-  "/api/auth/login",
-  "/api/auth/register",
-  "/api/auth/refresh",
+  "/api/v1/auth/login",
+  "/api/v1/auth/register",
+  "/api/v1/auth/refresh",
 ]);
 
 let refreshInFlight: Promise<string> | null = null;
 
 async function refreshAccessToken(): Promise<string> {
   if (!refreshInFlight) {
-    refreshInFlight = requestRaw<AuthSuccessDto>("POST", "/api/auth/refresh")
+    refreshInFlight = requestRaw<AuthSuccessDto>("POST", "/api/v1/auth/refresh")
       .then((body) => {
         accessToken = body.accessToken;
         return body.accessToken;
@@ -70,7 +72,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(`${BASE_URL}${path}`, init);
   } catch {
-    throw new ApiClientError(0, "NETWORK_ERROR", "Unable to reach the server.");
+    throw new ApiClientError(0, "NETWORK_ERROR", "Unable to reach the server. Check your connection and try again.");
   }
 }
 
@@ -91,11 +93,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    const envelope = payload as { error?: { code?: string; message?: string } };
+    const envelope = payload as { error?: { code?: string; message?: string; details?: Record<string, string> } };
     throw new ApiClientError(
       response.status,
       envelope.error?.code ?? "UNKNOWN_ERROR",
       envelope.error?.message ?? "Something went wrong.",
+      envelope.error?.details,
     );
   }
 

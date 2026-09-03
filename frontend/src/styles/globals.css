@@ -1,1 +1,206 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary-50: #fff7ed;
+  --color-primary-100: #ffedd5;
+  --color-primary-200: #fed7aa;
+  --color-primary-300: #fdba74;
+  --color-primary-400: #fb923c;
+  --color-primary-500: #f97316;
+  --color-primary-600: #ea580c;
+  --color-primary-700: #c2410c;
+  --color-primary-800: #9a3412;
+  --color-primary-900: #7c2d12;
+
+  --color-surface: #f8fafc;
+  --color-surface-card: rgba(255, 255, 255, 0.7);
+  --color-surface-overlay: rgba(255, 255, 255, 0.9);
+
+  --animate-fade-in: fade-in 0.6s ease-out both;
+  --animate-slide-up: slide-up 0.5s ease-out both;
+  --animate-slide-up-delayed: slide-up 0.5s ease-out 0.15s both;
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+  --animate-toast-in: toast-in 0.3s ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.3);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-surface);
+  }
+
+  ::selection {
+    background-color: rgba(249, 115, 22, 0.2);
+    color: #7c2d12;
+  }
+
+  :focus-visible {
+    outline: 2px solid #f97316;
+    outline-offset: 2px;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #f97316;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .sr-only-focusable {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .sr-only-focusable:focus {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    height: auto;
+    padding: 0.75rem 1.5rem;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    background-color: #f97316;
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 0.5rem;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #7c2d12, #ea580c, #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-text-subtle {
+    background: linear-gradient(135deg, #374151, #c2410c, #ea580c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass-card {
+    background: var(--color-surface-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  }
+
+  .glass-card-hover {
+    background: var(--color-surface-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+  }
+
+  .glass-card-hover:hover {
+    box-shadow:
+      0 0 20px rgba(249, 115, 22, 0.12),
+      0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    border-color: rgba(249, 115, 22, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .glow-hover {
+    transition: all 0.3s ease;
+  }
+
+  .glow-hover:hover {
+    box-shadow: 0 0 24px rgba(249, 115, 22, 0.25);
+  }
+
+  .input-field {
+    border: 1px solid #e5e7eb;
+    background: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s ease;
+  }
+
+  .input-field:focus {
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    outline: none;
+  }
+
+  .mesh-bg {
+    background-image:
+      radial-gradient(at 20% 20%, rgba(249, 115, 22, 0.06) 0, transparent 50%),
+      radial-gradient(at 80% 80%, rgba(239, 68, 68, 0.06) 0, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(234, 88, 12, 0.04) 0, transparent 50%);
+    background-color: var(--color-surface);
+  }
+}

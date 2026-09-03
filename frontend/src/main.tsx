@@ -6,6 +6,9 @@ import "@/styles/globals.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
+    <a href="#main-content" className="sr-only-focusable">
+      Skip to main content
+    </a>
     <BrowserRouter>
       <App />
     </BrowserRouter>
