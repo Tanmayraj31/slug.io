@@ -6,7 +6,7 @@ import { verifyAccessToken } from "./token.service.js";
 import type { AuthUserDto } from "./auth.types.js";
 
 export interface AuthenticatedRequest extends Request {
-  user: AuthUserDto;
+   user: AuthUserDto;
 }
 
 export async function requireAuth(

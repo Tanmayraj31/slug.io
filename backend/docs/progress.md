@@ -356,6 +356,18 @@ Wave 10.6 (OpenAPI, verification, docs, commit) is complete — Phase 10 is done
 
 **Phase 10 complete.** The Phase 10 aim — "critical workflows are automated and failure responses are consistent" — is met: unit tests cover pure business logic, integration/E2E tests cover register → create → redirect → analytics end to end, and every error path returns the consistent `{ error: { code, message } }` envelope.
 
+### Bug fix: swapped arguments in `updateLinkStatusController`
+
+While wiring the frontend, disabling a link always returned `404 LINK_NOT_FOUND`. Root cause: `src/modules/links/links.controller.ts` called `updateLinkStatus(user.id, paramsParsed.data.id, bodyParsed.data)` but the service signature is `updateLinkStatus(linkId, userId, input)` — the `linkId` and `userId` arguments were reversed. The service therefore looked up a link whose `id` matched the logged-in user's id and whose `userId` matched the path id → almost always `404`.
+
+The integration suite had not caught this because `tests/helpers/db.ts` clears the DB with `TRUNCATE ... RESTART IDENTITY`, so in each test the first registered user and first created link **both have id 1**, and the swapped lookup happened to resolve.
+
+Fix: call `updateLinkStatus(paramsParsed.data.id, user.id, bodyParsed.data)`. Also strengthened the tests so the swap can no longer hide:
+- "disables an active link" and "reactivates a disabled link" now first create a second link so the patched link's id is distinct from the user's id, and assert on that.
+- Added "returns 404 when a different user tries to update the link" (ownership isolation).
+
+Verified: `npx tsc --noEmit` green, `npm run typecheck:test` green, `npm test` green (174 tests, 12 files), plus live curl — owner can disable/reactivate their link (`200`), a different user gets `404 LINK_NOT_FOUND`.
+
 ## Next
 
 Phase 11 (React Client).

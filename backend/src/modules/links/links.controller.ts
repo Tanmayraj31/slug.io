@@ -58,7 +58,7 @@ export async function updateLinkStatusController(request: Request, response: Res
   }
 
   const { user } = request as AuthenticatedRequest;
-  const link = await updateLinkStatus(user.id, paramsParsed.data.id, bodyParsed.data);
+  const link = await updateLinkStatus(paramsParsed.data.id, user.id, bodyParsed.data);
 
   response.status(200).json({ link });
 }

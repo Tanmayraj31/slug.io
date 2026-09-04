@@ -240,13 +240,23 @@ describe("links integration", () => {
   });
 
   describe("PATCH /api/v1/links/:id/status", () => {
-    it("disables an active link", async () => {
+    it("disables an active link (link id distinct from user id)", async () => {
       const auth = await registerAndLogin(app);
+
+      // Create a first link so the link autoincrement advances past the user
+      // id (both start at 1 in an isolated test DB). The endpoint must resolve
+      // the link by its own id, not the authenticated user's id.
+      const first = await request(app)
+        .post("/api/v1/links")
+        .set(authHeader(auth.accessToken))
+        .send({ originalUrl: "https://disable-1.example.com" });
 
       const created = await request(app)
         .post("/api/v1/links")
         .set(authHeader(auth.accessToken))
         .send({ originalUrl: "https://disable.example.com" });
+
+      expect(created.body.link.id).not.toBe(auth.user.id);
 
       const res = await request(app)
         .patch(`/api/v1/links/${created.body.link.id}/status`)
@@ -259,6 +269,11 @@ describe("links integration", () => {
 
     it("reactivates a disabled link", async () => {
       const auth = await registerAndLogin(app);
+
+      await request(app)
+        .post("/api/v1/links")
+        .set(authHeader(auth.accessToken))
+        .send({ originalUrl: "https://reactivate-1.example.com" });
 
       const created = await request(app)
         .post("/api/v1/links")
@@ -288,6 +303,25 @@ describe("links integration", () => {
         .send({ status: "DISABLED" });
 
       expect(res.status).toBe(404);
+    });
+
+    it("returns 404 when a different user tries to update the link", async () => {
+      const owner = await registerAndLogin(app);
+
+      const created = await request(app)
+        .post("/api/v1/links")
+        .set(authHeader(owner.accessToken))
+        .send({ originalUrl: "https://ownership.example.com" });
+
+      const other = await registerAndLogin(app);
+
+      const res = await request(app)
+        .patch(`/api/v1/links/${created.body.link.id}/status`)
+        .set(authHeader(other.accessToken))
+        .send({ status: "DISABLED" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe("LINK_NOT_FOUND");
     });
 
     it("returns 400 VALIDATION_ERROR for invalid status value", async () => {
