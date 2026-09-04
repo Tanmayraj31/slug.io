@@ -190,7 +190,9 @@ Never commit `.env`, `node_modules`, or build output.
 
 ---
 
-## Phase 10: Final Polish and Deployment Prep
+## Phase 10: Final Polish and Deployment Prep (Completed)
+
+> Carried out as described; see `docs/progress.md` for full details. Phase 10 delivered a `frontend/README.md`, a verified clean production build (code-split via `React.lazy`; Recharts in a separate lazy-loaded chunk), confirmed no `console.log`/`console.debug` or hardcoded secrets in the build, and added `*.tsbuildinfo` to `.gitignore`.
 
 - Add `README.md` with setup instructions.
 - Verify production build (`npm run build`) works.
@@ -220,3 +222,18 @@ The frontend can proceed through most phases while the backend is still in progr
 | Phase 8–10 (Polish) | All above | — |
 
 Phases 1–5 can proceed immediately. Phases 6–7 will need the corresponding backend endpoints to be implemented first (or can be stubbed with mock data).
+
+---
+
+## Phase 10.5: Baseline Unit Testing (v1 smoke tests)
+
+> Scope decision: for v1, add only the test tooling plus targeted "smoke" unit tests over the highest-value pure-logic code. The full component + page-level suite is intentionally deferred to v2 to keep Phase 10 / deployment moving. See `docs/progress.md` for what was delivered.
+
+- Add test tooling: `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, `@vitest/coverage-v8`.
+- Add scripts: `test`, `test:watch`, `test:coverage`, `typecheck:test`.
+- Add `vitest.config.ts` (jsdom env, `@/` alias, `src/test/setup.ts`) and `src/test/setup.ts` (jest-dom matchers).
+- Add `tsconfig.test.json` so test files are typechecked with vitest/jest-dom types (`typecheck:test`), separate from the app build config which excludes `*.test.*`.
+- Smoke tests cover: `src/api/client.ts` (refresh-on-401, error envelope/`VALIDATION_ERROR` details parsing, 204/network handling, `session-expired` on refresh failure) and `src/hooks/useLinks.ts` (mount fetch, filter/page reset, error state, `refresh()`), plus `src/lib/utils.ts` (`cn()`).
+
+**Complete when:** `npm test`, `npm run typecheck:test`, `npm run lint`, and `npm run build` all pass.
+

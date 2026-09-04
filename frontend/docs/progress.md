@@ -165,6 +165,30 @@ Verified: `npx tsc --noEmit`, `npm run lint`, and `npm run build` are all green.
 
 Verified: `npx tsc --noEmit`, `npm run lint`, and `npm run build` are all green.
 
+### Frontend Phase 10.5: Baseline Unit Testing (v1 smoke tests)
+
+Added test tooling and targeted unit tests; the full component/page suite is intentionally deferred to v2 so Phase 10 / deployment isn't blocked.
+
+- **Tooling**: dev deps `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, `@vitest/coverage-v8`. Scripts `test` (vitest run), `test:watch`, `test:coverage`, and `typecheck:test` (tsc -p `tsconfig.test.json`).
+- **Config**: `vitest.config.ts` (jsdom env, `@/` alias, `src/test/setup.ts`); `src/test/setup.ts` imports `@testing-library/jest-dom/vitest`. `tsconfig.test.json` extends the app config, adds `vitest/globals` + `@testing-library/jest-dom` types, and includes `src` so `*.test.*` files are typechecked — separate from the app build config (main `tsconfig.json` excludes `src/**/*.test.*` and `src/test`). Added `coverage/` to `.gitignore`. ESLint learns vitest/Node globals for test files.
+- **Smoke tests** (16 total):
+  - `src/api/client.test.ts` — attaches Bearer token; parses success; throws `ApiClientError` with code/message/details (`VALIDATION_ERROR`); returns `undefined` on 204; maps network failure to `NETWORK_ERROR`; silent 401→refresh→retry with the fresh token; skips the refresh loop for refresh-exempt paths; dispatches `session-expired` and clears the token when refresh fails.
+  - `src/hooks/useLinks.test.ts` — fetches on mount; resets to page 1 + refetches on filter change; surfaces API error message; `refresh()` refetches the current page.
+  - `src/lib/utils.test.ts` — `cn()` joins truthy values and drops falsy ones.
+
+Verified: `npm test` (16 passed, ~94% stmt / ~75% branch coverage), `npm run typecheck:test`, `npm run lint`, `npm run build` all green.
+
+### Frontend Phase 10: Final Polish and Deployment Prep
+
+- Added `frontend/README.md` with setup instructions (prereqs, env vars, commands, testing, project structure, production build).
+- Added `*.tsbuildinfo` to `frontend/.gitignore` (was an untracked `tsc -b` build artifact).
+- Verified the production build works: `npm run build` (tsc -b + vite build) green; `npm run preview` serves the built `dist/` with a 200 on `/` (title + root div present).
+- Confirmed no `console.log` / `console.debug` in `src/` or the built bundle, and no hardcoded secrets/credentials in build output (matches were benign — form `name`/`id`/input-type attributes and client-side validation messages).
+- Route-based code splitting was already present (all pages via `React.lazy`; Recharts code-split into a lazy-loaded analytics chunk).
+- Final responsive + accessibility pass confirmed against the Phase 8/9 work (375px/768px/1280px layouts, keyboard nav, ARIA, skip-to-content, dialogs focus trap).
+
+Verified: `npm test` (16 passed), `npm run lint`, `npm run typecheck:test`, and `npm run build` all green; production build serves correctly.
+
 ## Next Phase
 
-Phase 10: Final Polish and Deployment Prep — see `docs/roadmap.md` (README, production build against the running backend, no console logs in prod, final responsive/a11y pass, commit and tag).
+All roadmap phases (1–10.5) are complete. Full frontend component- and page-level test coverage is the only planned v2 work (see `docs/roadmap.md` Phase 10.5 note). Commit/tag per the roadmap's version-control checkpoint.
