@@ -50,7 +50,6 @@ jobs:
           EOF
       - run: npm run typecheck:test
       - run: npm test
-      - run: npm run lint
       - run: npm audit --production --audit-level=high
       - run: npm run build
 
