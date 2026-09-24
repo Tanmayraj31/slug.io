@@ -66,7 +66,7 @@ jobs:
         run: |
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
-            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm --user root \
               -e npm_config_cache=/tmp/npm \
               backend npx --yes prisma migrate deploy
           "
@@ -75,7 +75,7 @@ jobs:
         run: |
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
-            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm --user root \
               -e npm_config_cache=/tmp/npm \
               backend npx --yes tsx prisma/seed.ts
           "
