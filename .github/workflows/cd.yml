@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: dev
-      url: ${{ secrets.DEV_APP_URL }}
     concurrency:
       group: deploy-dev
       cancel-in-progress: true
