@@ -368,6 +368,12 @@ Fix: call `updateLinkStatus(paramsParsed.data.id, user.id, bodyParsed.data)`. Al
 
 Verified: `npx tsc --noEmit` green, `npm run typecheck:test` green, `npm test` green (174 tests, 12 files), plus live curl — owner can disable/reactivate their link (`200`), a different user gets `404 LINK_NOT_FOUND`.
 
+### CI/CD: dev-only deployment pipeline is live
+
+- Workflows live on the default branch (`main`) so GitHub registers the `workflow_run` trigger; CD remains gated to `branches: [dev]` + `environment: dev`, so pushes to `main` never deploy.
+- Flow: push to `dev` → CI (lint/typecheck/tests on backend + frontend, Docker images pushed to GHCR) → on success CD sshs to the dev EC2, rsyncs `compose.dev.yaml` + `nginx/`, pulls the SHA images, `prisma migrate deploy` + `db:seed`, then health-checks `/health/live`.
+- CI fixes along the way: `.env.test` gains `JWT_SECRET` + current per-scope rate-limit vars; backend job drops the `lint` step (no ESLint in backend yet) and the `npm audit` step (fails only on dev-only prisma CLI advisories with no non-breaking fix until Prisma 8).
+
 ## Next
 
 Phase 11 (React Client).

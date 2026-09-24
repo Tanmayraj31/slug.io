@@ -17,6 +17,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 RUN npm run build
+RUN npx tsc -p tsconfig.seed.json
 
 # ──────────────────────────────────────────────
 # Stage 3: Production runtime
@@ -31,8 +32,14 @@ COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/package.json ./
 COPY --from=builder --chown=appuser:appgroup /app/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
+RUN npm install --no-save --no-package-lock \
+        prisma@~7.9.1 \
+    && node_modules/.bin/prisma --version \
+    && chown -R appuser:appgroup /app
+COPY --from=builder --chown=appuser:appgroup /app/dist-seed ./dist-seed
 COPY --from=builder --chown=appuser:appgroup /app/prisma ./prisma
-COPY --from=builder --chown=appuser:appgroup /app/src/generated ./src/generated
+COPY --from=builder --chown=appuser:appgroup /app/prisma.config.ts ./
+COPY --from=builder --chown=appuser:appgroup /app/openapi.yaml ./
 
 USER appuser
 

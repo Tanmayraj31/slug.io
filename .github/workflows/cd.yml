@@ -1,15 +1,11 @@
 name: CD
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [dev]
+  workflow_call:
 
 jobs:
   deploy-dev:
     name: Deploy to Dev EC2
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: dev
@@ -20,11 +16,9 @@ jobs:
       DEV_HOST: ${{ secrets.DEV_SSH_HOST }}
       DEV_USER: ${{ secrets.DEV_SSH_USER }}
       DEV_APP_URL: ${{ secrets.DEV_APP_URL }}
-      APP_SHA: ${{ github.event.workflow_run.head_sha }}
+      APP_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Start SSH agent and load dev key
         uses: webfactory/ssh-agent@v0.9.0
@@ -67,8 +61,7 @@ jobs:
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
             APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
-              -e npm_config_cache=/tmp/npm \
-              backend npx --yes prisma migrate deploy
+              backend node_modules/.bin/prisma migrate deploy
           "
 
       - name: Seed plans on EC2
@@ -76,8 +69,7 @@ jobs:
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
             APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
-              -e npm_config_cache=/tmp/npm \
-              backend npx --yes tsx prisma/seed.ts
+              backend node dist-seed/prisma/seed.js
           "
 
       - name: Wait for health check
@@ -92,3 +84,17 @@ jobs:
           done
           echo "Dev health check failed"
           exit 1
+
+      - name: Prune old images on EC2 (keep last 3)
+        run: |
+          ssh "$DEV_USER@$DEV_HOST" "set -e
+            docker image prune -f >/dev/null || true
+            for repo in backend frontend; do
+              docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' \\
+                \"ghcr.io/tanmayraj31/slug.io/\${repo}\" \\
+                | sort -k2 -k3 -r \\
+                | tail -n +4 \\
+                | cut -d' ' -f1 \\
+                | xargs -r docker rmi || true
+            done
+          "

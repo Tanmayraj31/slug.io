@@ -93,3 +93,10 @@ jobs:
         run: |
           docker build -t ghcr.io/tanmayraj31/slug.io/frontend:${{ github.sha }} ./frontend
           docker push ghcr.io/tanmayraj31/slug.io/frontend:${{ github.sha }}
+
+  deploy-dev:
+    name: Deploy to Dev EC2
+    if: github.ref == 'refs/heads/dev'
+    needs: docker
+    uses: ./.github/workflows/cd.yml
+    secrets: inherit
