@@ -84,3 +84,17 @@ jobs:
           done
           echo "Dev health check failed"
           exit 1
+
+      - name: Prune old images on EC2 (keep last 3)
+        run: |
+          ssh "$DEV_USER@$DEV_HOST" "set -e
+            docker image prune -f >/dev/null || true
+            for repo in backend frontend; do
+              docker images --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' \\
+                \"ghcr.io/tanmayraj31/slug.io/\${repo}\" \\
+                | sort -k2 -k3 -r \\
+                | tail -n +4 \\
+                | cut -d' ' -f1 \\
+                | xargs -r docker rmi || true
+            done
+          "
