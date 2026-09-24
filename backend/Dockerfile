@@ -36,6 +36,7 @@ RUN npm install --omit=dev --no-save --no-package-lock \
     && node_modules/.bin/prisma --version \
     && chown -R appuser:appgroup /app
 COPY --from=builder --chown=appuser:appgroup /app/prisma ./prisma
+COPY --from=builder --chown=appuser:appgroup /app/prisma.config.ts ./
 COPY --from=builder --chown=appuser:appgroup /app/src/generated ./src/generated
 COPY --from=builder --chown=appuser:appgroup /app/openapi.yaml ./
 
