@@ -11,7 +11,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:3000/health/live"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:3000/health/live"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -23,7 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: url-shortener-frontend
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -42,7 +42,7 @@ services:
       frontend:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost/health/live"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1/nginx-health"]
       interval: 30s
       timeout: 5s
       retries: 3

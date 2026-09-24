@@ -53,7 +53,7 @@ jobs:
         run: |
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
-            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml up -d
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml up -d --force-recreate nginx
           "
 
       - name: Run Prisma migrations on EC2
