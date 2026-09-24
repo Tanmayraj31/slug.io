@@ -40,8 +40,13 @@ jobs:
         run: |
           cat > .env.test <<'EOF'
           DATABASE_URL=postgresql://url_app:url_pass@localhost:5432/url_shortener_test
-          RATE_LIMIT_WINDOW_MS=60000
-          RATE_LIMIT_MAX=1000
+          JWT_SECRET=ci-test-secret-not-for-production-at-least-32-chars
+          RATE_LIMIT_AUTH_MAX=10000
+          RATE_LIMIT_AUTH_WINDOW_MS=60000
+          RATE_LIMIT_API_MAX=10000
+          RATE_LIMIT_API_WINDOW_MS=60000
+          RATE_LIMIT_REDIRECT_MAX=10000
+          RATE_LIMIT_REDIRECT_WINDOW_MS=60000
           EOF
       - run: npm run typecheck:test
       - run: npm test
