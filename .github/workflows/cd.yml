@@ -69,7 +69,7 @@ jobs:
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
             APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
-              backend node_modules/.bin/tsx prisma/seed.ts
+              backend node dist-seed/prisma/seed.js
           "
 
       - name: Wait for health check
