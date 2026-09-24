@@ -574,12 +574,12 @@ Production healthchecks can be less frequent — reduces CPU overhead.
 |-----|-------|-----|
 | `backend` | `npm ci` → `npx prisma generate` → write `.env.test` → `npm run typecheck:test` → `npm test` → `npm run build` | Full backend gate. Backend tests hit a real Postgres 17 **service container** (gha service, healthchecked via `pg_isready`); the `.env.test` written in CI points at it with relaxed `RATE_LIMIT_*` values, mirroring local dev. `prisma generate` is required because the generated client is gitignored. |
 | `frontend` | `npm ci` → `npm run lint` → `npm run typecheck:test` → `npm test` → `npm run build` | Frontend gate. jsdom tests need no services; `build` validates the `tsc -b && vite build` step the Docker image relies on. |
-| `docker` | `docker build backend` → `docker build frontend` | Proves both multi-stage `Dockerfile`s compile standalone, so `docker compose ... up --build` won't fail on a broken image. Images are tagged `:ci` and not pushed (no registry auth needed yet). |
+| `docker` | `docker build backend` → `docker build frontend` → `docker push ghcr.io/Tanmayraj31/slug.io/{backend,frontend}:<full-SHA>` | Proves both multi-stage `Dockerfile`s compile standalone, so `docker compose ... up --build` won't fail on a broken image. The CI pipeline now builds **and pushes** both images to GHCR, tagged by the full commit SHA (`${{ github.sha }}`) so CD (see Phase 10) can pull the exact tested artifact. |
 
 **GitHub Actions specifics**
 - `actions/checkout@v4` + `actions/setup-node@v4` with `node-version: 20` and `cache: npm` (both lockfiles are dependency-path-hinted so each job caches separately).
 - The backend's `tests/setup.ts` and `tests/global-setup.ts` load `.env.test` with `dotenv` `override: true`, so CI must **create that file** (job env vars would be overwritten). `global-setup` then creates `url_shortener_test`, runs `prisma migrate deploy`, and seeds the FREE/PRO plans — no secrets needed in CI.
-- If you later want to push images: add the `docker build` + `docker/login-action@v3` + `docker/build-push-action` trio, set `push: true`, and tag by `sha-${GITHUB_SHA::7}` instead of `:ci`.
+- If you later want to push images: the `docker` job already logs in to GHCR and tags images `ghcr.io/Tanmayraj31/slug.io/{backend,frontend}:${{ github.sha }}`; `npm audit` runs on the backend gate. Nothing further needed — the pushes happen on every successful run of the `docker` job.
 
 ---
 
@@ -594,6 +594,55 @@ Production healthchecks can be less frequent — reduces CPU overhead.
 | **Managed service (Supabase / Neon / AWS RDS / Oracle DB Cloud)** | Only if you need async off-host backups, a higher uptime SLA, or horizontal scaling later. |
 
 **If switching to a managed DB:** Remove the `postgres` service from compose and point `DATABASE_URL` at the remote host (e.g., `postgresql://user:pass@supabase-host:5432/db`). No other changes needed — the backend reads `DATABASE_URL` from env.
+
+---
+
+### Phase 10: Continuous Deployment (Dev EC2 via SSH)
+
+**Goal:** After CI passes on `dev`, deploy the exact tested images to a dev EC2 instance over SSH. Production deployment (dev→main merge → prod EC2) is intentionally left for a later phase — the workflow is currently **dev-only**.
+
+**Files:** `.github/workflows/cd.yml` (dev-only job), `compose.dev.yaml` (repo root, server deploy manifest), `backend/Dockerfile` (ships `src/generated` so the containerized seed can run).
+
+**How it works**
+
+1. `workflow_run` on `CI` (completed, branch `dev`, conclusion `success`). The `workflow_run` event carries the real commit via `github.event.workflow_run.head_sha`; that SHA is used for both the checkout and the image tag `APP_SHA`. (The raw `github.sha` is the default branch under `workflow_run` and is **not** reliable — that was a latent bug in the original CD file.)
+2. The runner loads `DEV_SSH_PRIVATE_KEY` (`webfactory/ssh-agent`), trusts `DEV_SSH_HOST`, and `rsync`s `compose.dev.yaml` + `nginx/` to `/opt/slug.io/`.
+3. Over SSH it: logs in to GHCR → `docker compose -f compose.dev.yaml pull` → `up -d` → runs `prisma migrate deploy` and `db:seed` via one-off `docker compose run` containers.
+4. The runner polls `http://<dev-host>/health/live` (30 × 5s) and fails the job if the stack never comes up.
+
+**Why `prisma migrate deploy` / `npm run db:seed` as one-off runs, not `docker compose exec`:** `prisma` and `tsx` are devDependencies, so the runtime image omits them. Each one-off uses `npx --yes <tool>` (downloaded on the server on demand) with `-e npm_config_cache=/tmp/npm` so the non-root `appuser` has a writable cache. Seed now works in-container because the Dockerfile ships `src/generated` (the Prisma v7 `prisma-client` output) into the runtime image, which `prisma/seed.ts` imports.
+
+**Source of truth for deploys is never the runner, and `backend/.env` never leaves the server.** `compose.dev.yaml` uses `build`-free `image:` services pinned to `ghcr.io/Tanmayraj31/slug.io/{backend,frontend}:${APP_SHA}`, so the server needs no build context. `backend/.env` (secrets) is created once during bootstrap and is never re-uploaded — each deploy only overwrites `compose.dev.yaml` and `nginx/nginx.conf`.
+
+**GitHub secrets the workflow expects**
+
+| Secret | Purpose |
+|--------|---------|
+| `DEV_SSH_HOST` | EC2 IP or DNS name |
+| `DEV_SSH_USER` | SSH user (e.g. `ec2-user`, `ubuntu`, `admin`) — must have Docker access |
+| `DEV_SSH_PRIVATE_KEY` | EC2 keypair PEM private key |
+| `DEV_APP_URL` | `http://<dev-host>` (environment URL + health check base) |
+| `GHCR_TOKEN` | (existing) GHCR login — needs at least `read:packages` for pulls |
+
+**One-time server bootstrap (run manually before the first deploy)**
+
+```bash
+# On the dev EC2 (Ubuntu/Amazon Linux with Docker + compose plugin installed):
+sudo mkdir -p /opt/slug.io && sudo chown "$USER" /opt/slug.io
+mkdir -p /opt/slug.io/backend
+
+# Create backend/.env with dev values (never commit this). Required keys:
+# PORT, DATABASE_URL (postgresql://<user>:<pass>@postgres:5432/<db>?schema=public),
+# JWT_SECRET, COOKIE_*/PUBLIC_BASE_URL (http://<dev-host>), RATE_LIMIT_*,
+# plus POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD (compose interpolation).
+# See backend/.env.example for the full list.
+```
+
+Open inbound TCP 80 (and 22 from GitHub's runners) in the EC2 security group. Confirm the user can run `docker ps` without `sudo` (add them to the `docker` group).
+
+**Rollback:** re-run the workflow against an older image by pointing `APP_SHA` at a previous SHA (or `docker compose -f compose.dev.yaml up -d` with an older tag on the server).
+
+**Later (prod):** when dev→main merges should deploy to a prod EC2, copy the `deploy-dev` job with `PROD_*` secrets, a `compose.prod.yaml`-style image manifest, and a merge trigger — the current broken production job was removed during this phase.
 
 ---
 

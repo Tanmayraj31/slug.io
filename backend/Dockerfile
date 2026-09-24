@@ -32,6 +32,7 @@ COPY --from=builder --chown=appuser:appgroup /app/package.json ./
 COPY --from=builder --chown=appuser:appgroup /app/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY --from=builder --chown=appuser:appgroup /app/prisma ./prisma
+COPY --from=builder --chown=appuser:appgroup /app/src/generated ./src/generated
 
 USER appuser
 

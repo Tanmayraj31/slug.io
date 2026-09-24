@@ -36,6 +36,12 @@ docker compose --env-file ./backend/.env -f compose.yaml -f compose.prod.yaml up
 
 Postgres-only dev (DB for backend `npm run dev`): `docker compose --env-file ./backend/.env up -d postgres`
 
+## CI / CD (GitHub Actions)
+
+- `.github/workflows/ci.yml`: on push to `main`/`dev` and PRs — lint, typecheck, tests (backend needs the compose Postgres up), build, and pushes `ghcr.io/Tanmayraj31/slug.io/{backend,frontend}:<full-SHA>`.
+- `.github/workflows/cd.yml`: **dev-only**, triggered by a successful `workflow_run` of CI on `dev`. It SSHes into a dev EC2, rsyncs `compose.dev.yaml` + `nginx/`, pulls the SHA images, `up -d`, runs `prisma migrate deploy` + `db:seed` via one-off `docker compose run` (npx, `npm_config_cache=/tmp/npm`), then polls `http://<DEV_APP_URL>/health/live`.
+- Required GitHub secrets: `DEV_SSH_HOST`, `DEV_SSH_USER`, `DEV_SSH_PRIVATE_KEY`, `DEV_APP_URL`, `GHCR_TOKEN`. `backend/.env` lives **only** on the server at `/opt/slug.io/backend/.env` (created once in bootstrap; never uploaded). Server layout: `compose.dev.yaml`, `nginx/nginx.conf`, `backend/.env`. See `backend/docs/docker-deployment.md` Phase 10 for bootstrap + rollback.
+
 ## Fresh clone setup (order matters)
 
 ```powershell
