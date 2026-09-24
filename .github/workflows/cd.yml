@@ -1,15 +1,11 @@
 name: CD
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [dev]
+  workflow_call:
 
 jobs:
   deploy-dev:
     name: Deploy to Dev EC2
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: dev
@@ -20,11 +16,9 @@ jobs:
       DEV_HOST: ${{ secrets.DEV_SSH_HOST }}
       DEV_USER: ${{ secrets.DEV_SSH_USER }}
       DEV_APP_URL: ${{ secrets.DEV_APP_URL }}
-      APP_SHA: ${{ github.event.workflow_run.head_sha }}
+      APP_SHA: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Start SSH agent and load dev key
         uses: webfactory/ssh-agent@v0.9.0
