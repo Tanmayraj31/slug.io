@@ -38,12 +38,11 @@ jobs:
       - run: npx prisma generate --schema=prisma/schema.prisma
       - name: Write .env.test
         run: |
-          $env = @"
+          cat > .env.test <<'EOF'
           DATABASE_URL=postgresql://url_app:url_pass@localhost:5432/url_shortener_test
           RATE_LIMIT_WINDOW_MS=60000
           RATE_LIMIT_MAX=1000
-          "@
-          Set-Content -Path .env.test -Value $env
+          EOF
       - run: npm run typecheck:test
       - run: npm test
       - run: npm run lint
@@ -85,9 +84,9 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
       - name: Build and push backend image
         run: |
-          docker build -t ghcr.io/Tanmayraj31/slug.io/backend:${{ github.sha }} ./backend
-          docker push ghcr.io/Tanmayraj31/slug.io/backend:${{ github.sha }}
+          docker build -t ghcr.io/tanmayraj31/slug.io/backend:${{ github.sha }} ./backend
+          docker push ghcr.io/tanmayraj31/slug.io/backend:${{ github.sha }}
       - name: Build and push frontend image
         run: |
-          docker build -t ghcr.io/Tanmayraj31/slug.io/frontend:${{ github.sha }} ./frontend
-          docker push ghcr.io/Tanmayraj31/slug.io/frontend:${{ github.sha }}
+          docker build -t ghcr.io/tanmayraj31/slug.io/frontend:${{ github.sha }} ./frontend
+          docker push ghcr.io/tanmayraj31/slug.io/frontend:${{ github.sha }}

@@ -7,7 +7,7 @@
 #   backend/.env            (created once during bootstrap, never re-uploaded)
 services:
   backend:
-    image: ghcr.io/Tanmayraj31/slug.io/backend:${APP_SHA}
+    image: ghcr.io/tanmayraj31/slug.io/backend:${APP_SHA}
     container_name: url-shortener-backend
     env_file: ./backend/.env
     environment:
@@ -36,7 +36,7 @@ services:
       start_period: 20s
 
   frontend:
-    image: ghcr.io/Tanmayraj31/slug.io/frontend:${APP_SHA}
+    image: ghcr.io/tanmayraj31/slug.io/frontend:${APP_SHA}
     container_name: url-shortener-frontend
     restart: unless-stopped
     deploy:

@@ -574,12 +574,12 @@ Production healthchecks can be less frequent — reduces CPU overhead.
 |-----|-------|-----|
 | `backend` | `npm ci` → `npx prisma generate` → write `.env.test` → `npm run typecheck:test` → `npm test` → `npm run build` | Full backend gate. Backend tests hit a real Postgres 17 **service container** (gha service, healthchecked via `pg_isready`); the `.env.test` written in CI points at it with relaxed `RATE_LIMIT_*` values, mirroring local dev. `prisma generate` is required because the generated client is gitignored. |
 | `frontend` | `npm ci` → `npm run lint` → `npm run typecheck:test` → `npm test` → `npm run build` | Frontend gate. jsdom tests need no services; `build` validates the `tsc -b && vite build` step the Docker image relies on. |
-| `docker` | `docker build backend` → `docker build frontend` → `docker push ghcr.io/Tanmayraj31/slug.io/{backend,frontend}:<full-SHA>` | Proves both multi-stage `Dockerfile`s compile standalone, so `docker compose ... up --build` won't fail on a broken image. The CI pipeline now builds **and pushes** both images to GHCR, tagged by the full commit SHA (`${{ github.sha }}`) so CD (see Phase 10) can pull the exact tested artifact. |
+| `docker` | `docker build backend` → `docker build frontend` → `docker push ghcr.io/tanmayraj31/slug.io/{backend,frontend}:<full-SHA>` | Proves both multi-stage `Dockerfile`s compile standalone, so `docker compose ... up --build` won't fail on a broken image. The CI pipeline now builds **and pushes** both images to GHCR, tagged by the full commit SHA (`${{ github.sha }}`) so CD (see Phase 10) can pull the exact tested artifact. Image paths are **lowercase** (Docker repository names must be lowercase; GHCR namespaces are case-insensitive, so `tanmayraj31` maps to the `Tanmayraj31` account). |
 
 **GitHub Actions specifics**
 - `actions/checkout@v4` + `actions/setup-node@v4` with `node-version: 20` and `cache: npm` (both lockfiles are dependency-path-hinted so each job caches separately).
 - The backend's `tests/setup.ts` and `tests/global-setup.ts` load `.env.test` with `dotenv` `override: true`, so CI must **create that file** (job env vars would be overwritten). `global-setup` then creates `url_shortener_test`, runs `prisma migrate deploy`, and seeds the FREE/PRO plans — no secrets needed in CI.
-- If you later want to push images: the `docker` job already logs in to GHCR and tags images `ghcr.io/Tanmayraj31/slug.io/{backend,frontend}:${{ github.sha }}`; `npm audit` runs on the backend gate. Nothing further needed — the pushes happen on every successful run of the `docker` job.
+- If you later want to push images: the `docker` job already logs in to GHCR and tags images `ghcr.io/tanmayraj31/slug.io/{backend,frontend}:${{ github.sha }}`; `npm audit` runs on the backend gate. Nothing further needed — the pushes happen on every successful run of the `docker` job.
 
 ---
 
@@ -612,7 +612,7 @@ Production healthchecks can be less frequent — reduces CPU overhead.
 
 **Why `prisma migrate deploy` / `npm run db:seed` as one-off runs, not `docker compose exec`:** `prisma` and `tsx` are devDependencies, so the runtime image omits them. Each one-off uses `npx --yes <tool>` (downloaded on the server on demand) with `-e npm_config_cache=/tmp/npm` so the non-root `appuser` has a writable cache. Seed now works in-container because the Dockerfile ships `src/generated` (the Prisma v7 `prisma-client` output) into the runtime image, which `prisma/seed.ts` imports.
 
-**Source of truth for deploys is never the runner, and `backend/.env` never leaves the server.** `compose.dev.yaml` uses `build`-free `image:` services pinned to `ghcr.io/Tanmayraj31/slug.io/{backend,frontend}:${APP_SHA}`, so the server needs no build context. `backend/.env` (secrets) is created once during bootstrap and is never re-uploaded — each deploy only overwrites `compose.dev.yaml` and `nginx/nginx.conf`.
+**Source of truth for deploys is never the runner, and `backend/.env` never leaves the server.** `compose.dev.yaml` uses `build`-free `image:` services pinned to `ghcr.io/tanmayraj31/slug.io/{backend,frontend}:${APP_SHA}`, so the server needs no build context. `backend/.env` (secrets) is created once during bootstrap and is never re-uploaded — each deploy only overwrites `compose.dev.yaml` and `nginx/nginx.conf`.
 
 **GitHub secrets the workflow expects**
 
