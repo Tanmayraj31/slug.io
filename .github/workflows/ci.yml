@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: url_shortener_test
+          POSTGRES_USER: url_app
+          POSTGRES_PASSWORD: url_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U url_app -d url_shortener_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate --schema=prisma/schema.prisma
+      - name: Write .env.test
+        run: |
+          cat > .env.test <<'EOF'
+          DATABASE_URL=postgresql://url_app:url_pass@localhost:5432/url_shortener_test
+          JWT_SECRET=ci-test-secret-not-for-production-at-least-32-chars
+          RATE_LIMIT_AUTH_MAX=10000
+          RATE_LIMIT_AUTH_WINDOW_MS=60000
+          RATE_LIMIT_API_MAX=10000
+          RATE_LIMIT_API_WINDOW_MS=60000
+          RATE_LIMIT_REDIRECT_MAX=10000
+          RATE_LIMIT_REDIRECT_WINDOW_MS=60000
+          EOF
+      - run: npm run typecheck:test
+      - run: npm test
+      - run: npm run build
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck:test
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: Tanmayraj31
+          password: ${{ secrets.GHCR_TOKEN }}
+      - name: Build and push backend image
+        run: |
+          docker build -t ghcr.io/tanmayraj31/slug.io/backend:${{ github.sha }} ./backend
+          docker push ghcr.io/tanmayraj31/slug.io/backend:${{ github.sha }}
+      - name: Build and push frontend image
+        run: |
+          docker build -t ghcr.io/tanmayraj31/slug.io/frontend:${{ github.sha }} ./frontend
+          docker push ghcr.io/tanmayraj31/slug.io/frontend:${{ github.sha }}

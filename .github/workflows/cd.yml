@@ -1,0 +1,94 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [dev]
+
+jobs:
+  deploy-dev:
+    name: Deploy to Dev EC2
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: true
+    env:
+      DEV_HOST: ${{ secrets.DEV_SSH_HOST }}
+      DEV_USER: ${{ secrets.DEV_SSH_USER }}
+      DEV_APP_URL: ${{ secrets.DEV_APP_URL }}
+      APP_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Start SSH agent and load dev key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+
+      - name: Trust dev host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan "$DEV_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync deploy files to EC2
+        run: |
+          rsync -avz -e ssh --delete \
+            compose.dev.yaml \
+            "$DEV_USER@$DEV_HOST:/opt/slug.io/"
+          rsync -avz -e ssh --delete \
+            nginx/ \
+            "$DEV_USER@$DEV_HOST:/opt/slug.io/nginx/"
+
+      - name: Pull images on EC2
+        run: |
+          ssh "$DEV_USER@$DEV_HOST" "set -e
+            cd /opt/slug.io
+            echo '$GHCR_TOKEN' | docker login ghcr.io -u Tanmayraj31 --password-stdin
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml pull
+          "
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Bring stack up on EC2
+        run: |
+          ssh "$DEV_USER@$DEV_HOST" "set -e
+            cd /opt/slug.io
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml up -d
+          "
+
+      - name: Run Prisma migrations on EC2
+        run: |
+          ssh "$DEV_USER@$DEV_HOST" "set -e
+            cd /opt/slug.io
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
+              -e npm_config_cache=/tmp/npm \
+              backend npx --yes prisma migrate deploy
+          "
+
+      - name: Seed plans on EC2
+        run: |
+          ssh "$DEV_USER@$DEV_HOST" "set -e
+            cd /opt/slug.io
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
+              -e npm_config_cache=/tmp/npm \
+              backend npx --yes tsx prisma/seed.ts
+          "
+
+      - name: Wait for health check
+        run: |
+          for i in {1..30}; do
+            if curl -sf "$DEV_APP_URL/health/live"; then
+              echo "Dev health check passed"
+              exit 0
+            fi
+            echo "Waiting for dev..."
+            sleep 5
+          done
+          echo "Dev health check failed"
+          exit 1
