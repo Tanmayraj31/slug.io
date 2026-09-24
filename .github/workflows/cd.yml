@@ -60,18 +60,16 @@ jobs:
         run: |
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
-            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm --user root \
-              -e npm_config_cache=/tmp/npm \
-              backend npx --yes prisma migrate deploy
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
+              backend node_modules/.bin/prisma migrate deploy
           "
 
       - name: Seed plans on EC2
         run: |
           ssh "$DEV_USER@$DEV_HOST" "set -e
             cd /opt/slug.io
-            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm --user root \
-              -e npm_config_cache=/tmp/npm \
-              backend npx --yes tsx prisma/seed.ts
+            APP_SHA='$APP_SHA' docker compose --env-file ./backend/.env -f compose.dev.yaml run --rm \
+              backend node_modules/.bin/tsx prisma/seed.ts
           "
 
       - name: Wait for health check

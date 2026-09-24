@@ -31,6 +31,8 @@ COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/package.json ./
 COPY --from=builder --chown=appuser:appgroup /app/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
+RUN npm install --omit=dev --no-save --no-package-lock \
+    prisma@~7.9.1 tsx@~4.23.1
 COPY --from=builder --chown=appuser:appgroup /app/prisma ./prisma
 COPY --from=builder --chown=appuser:appgroup /app/src/generated ./src/generated
 COPY --from=builder --chown=appuser:appgroup /app/openapi.yaml ./

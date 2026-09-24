@@ -605,12 +605,12 @@ Production healthchecks can be less frequent — reduces CPU overhead.
 
 **How it works**
 
-1. `workflow_run` on `CI` (completed, branch `dev`, conclusion `success`). The `workflow_run` event carries the real commit via `github.event.workflow_run.head_sha`; that SHA is used for both the checkout and the image tag `APP_SHA`. (The raw `github.sha` is the default branch under `workflow_run` and is **not** reliable — that was a latent bug in the original CD file.)
+1. `cd.yml` is a reusable `workflow_call` workflow invoked from `ci.yml` by a `deploy-dev` job gated to `github.ref == 'refs/heads/dev'` that `needs: docker`. CI passes the **real pushed commit** as `APP_SHA` (`${{ github.sha }}`), used for both the checkout and the image tag. (The original `workflow_run` design always reported the default branch's `head_sha`, so CD deployed stale images no matter what dev contained — that latent bug is why CD is now `workflow_call`.)
 2. The runner loads `DEV_SSH_PRIVATE_KEY` (`webfactory/ssh-agent`), trusts `DEV_SSH_HOST`, and `rsync`s `compose.dev.yaml` + `nginx/` to `/opt/slug.io/`.
 3. Over SSH it: logs in to GHCR → `docker compose -f compose.dev.yaml pull` → `up -d` → runs `prisma migrate deploy` and `db:seed` via one-off `docker compose run` containers.
 4. The runner polls `http://<dev-host>/health/live` (30 × 5s) and fails the job if the stack never comes up.
 
-**Why `prisma migrate deploy` / `npm run db:seed` as one-off runs, not `docker compose exec`:** `prisma` and `tsx` are devDependencies, so the runtime image omits them. Each one-off uses `npx --yes <tool>` (downloaded on the server on demand) with `-e npm_config_cache=/tmp/npm` so the non-root `appuser` has a writable cache. Seed now works in-container because the Dockerfile ships `src/generated` (the Prisma v7 `prisma-client` output) into the runtime image, which `prisma/seed.ts` imports.
+**Why `prisma migrate deploy` / `db:seed` as one-off `docker compose run`s:** the Dockerfile's `runner` stage bundles `prisma` and `tsx` into the runtime image (`npm install --omit=dev --no-save prisma@~7.9.1 tsx@~4.23.1`), so engines exist at build time and the one-offs call `node_modules/.bin/prisma` / `node_modules/.bin/tsx` directly — **no `npx`, no server-side downloads, no `--user root`**. This matters because Prisma 7 is config-driven: `prisma.config.ts` imports `"prisma/config"` and exposes `datasource.url` from `process.env.DATABASE_URL`; with the CLI only available via `npx` (installed outside `/app/node_modules`), that import fails and `prisma migrate deploy` dies with *"The datasource.url property is required in your Prisma config file…"*. Seed works in-container because the Dockerfile ships `src/generated` (the Prisma v7 `prisma-client` output) into the runtime image, which `prisma/seed.ts` imports.
 
 **Source of truth for deploys is never the runner, and `backend/.env` never leaves the server.** `compose.dev.yaml` uses `build`-free `image:` services pinned to `ghcr.io/tanmayraj31/slug.io/{backend,frontend}:${APP_SHA}`, so the server needs no build context. `backend/.env` (secrets) is created once during bootstrap and is never re-uploaded — each deploy only overwrites `compose.dev.yaml` and `nginx/nginx.conf`.
 
@@ -768,7 +768,7 @@ docker inspect --format='{{.State.Health.Status}}' url-shortener-backend
 
 ```bash
 # Run Prisma migration inside the backend container
-docker compose exec backend npx prisma migrate deploy
+docker compose exec backend node_modules/.bin/prisma migrate deploy
 
 # Seed the database inside the backend container
 docker compose exec backend npm run db:seed
